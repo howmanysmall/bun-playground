@@ -1,45 +1,62 @@
 {
 	"$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+
+	"assist": {
+		"actions": {
+			"source": {
+				"organizeImports": "on",
+				"recommended": true,
+				"useSortedAttributes": "on",
+				"useSortedKeys": "on",
+				"useSortedProperties": "on"
+			}
+		}
+	},
 	"formatter": {
 		"enabled": true,
 		"formatWithErrors": true,
+		"includes": ["**", "!**/node_modules/**", "!**/include/**", "!**/garbage/**"],
 		"indentStyle": "tab",
 		"indentWidth": 4,
 		"lineEnding": "lf",
-		"lineWidth": 120,
-		"ignore": ["**/node_modules/**", "**/include/**", "garbage/**"]
+		"lineWidth": 120
 	},
 
-	"vcs": {
-		"clientKind": "git",
-		"defaultBranch": "main",
-		"enabled": true,
-		"useIgnoreFile": false
+	"javascript": {
+		"formatter": {
+			"arrowParentheses": "always",
+			"bracketSameLine": false,
+			"bracketSpacing": true,
+			"enabled": true,
+			"indentStyle": "tab",
+			"indentWidth": 4,
+			"jsxQuoteStyle": "double",
+			"lineEnding": "lf",
+			"lineWidth": 120,
+			"quoteProperties": "asNeeded",
+			"quoteStyle": "double",
+			"semicolons": "always",
+			"trailingCommas": "all"
+		},
+		"globals": ["Bun"],
+		"linter": { "enabled": true }
 	},
-
-	"organizeImports": {
-		"enabled": true,
-		"include": ["**/*.ts", "**/*.js"]
-	},
-
-	"assists": {},
 
 	"linter": {
 		"enabled": true,
-		"ignore": [".vscode/**", "node_modules/**", "*.code-workspace", "garbage/**"],
+		"includes": ["**", "!**/.vscode/**", "!**/node_modules/**", "!**/*.code-workspace", "!**/garbage/**"],
 		"rules": {
-			"recommended": true,
+			"a11y": {},
 			"complexity": {
+				"noAdjacentSpacesInRegex": "error",
 				"noBannedTypes": "error",
 				"noExtraBooleanCast": "error",
 				"noForEach": "error",
-				"noMultipleSpacesInRegularExpressionLiterals": "error",
 				"noStaticOnlyClass": "error",
 				"noUselessCatch": "error",
 				"noUselessSwitchCase": "error",
 				"noUselessThisAlias": "error",
 				"noUselessTypeConstraint": "error",
-				"noWith": "error",
 				"useArrowFunction": "off",
 				"useDateNow": "error",
 				"useFlatMap": "error"
@@ -53,7 +70,6 @@
 				"noInnerDeclarations": "off",
 				"noInvalidBuiltinInstantiation": "error",
 				"noInvalidConstructorSuper": "error",
-				"noNewSymbol": "error",
 				"noNonoctalDecimalEscape": "error",
 				"noPrecisionLoss": "error",
 				"noSelfAssign": "error",
@@ -66,29 +82,40 @@
 				"noUnsafeOptionalChaining": "error",
 				"noUnusedLabels": "error",
 				"noUnusedVariables": "error",
-				"useArrayLiterals": "off",
 				"useIsNan": "error",
 				"useValidForDirection": "error",
+				"useValidTypeof": "error",
 				"useYield": "error"
 			},
-			"performance": {
-				"all": true
-			},
+			"nursery": {},
+			"performance": {},
+			"recommended": true,
+			"security": {},
 			"style": {
+				"noEnum": "off",
+				"noInferrableTypes": "error",
 				"noNamespace": "error",
 				"noNegationElse": "off",
 				"noNonNullAssertion": "off",
 				"noParameterAssign": "off",
+				"noUnusedTemplateLiteral": "error",
+				"noUselessElse": "error",
+				"useArrayLiterals": "off",
 				"useAsConstAssertion": "error",
 				"useBlockStatements": "off",
+				"useConsistentMemberAccessibility": "off",
+				"useDefaultParameterLast": "error",
+				"useEnumInitializers": "error",
 				"useExplicitLengthCheck": "error",
 				"useFilenamingConvention": {
 					"level": "error",
-					"options": { "requireAscii": true, "filenameCases": ["kebab-case"] }
+					"options": { "filenameCases": ["kebab-case"], "requireAscii": true }
 				},
 				"useForOf": "error",
 				"useNodejsImportProtocol": "error",
 				"useNumberNamespace": "error",
+				"useSelfClosingElements": "error",
+				"useSingleVarDeclarator": "error",
 				"useThrowNewError": "error"
 			},
 			"suspicious": {
@@ -119,59 +146,21 @@
 				"noThenProperty": "error",
 				"noUnsafeDeclarationMerging": "error",
 				"noUnsafeNegation": "error",
+				"noWith": "error",
 				"useErrorMessage": "error",
 				"useGetterReturn": "error",
 				"useIsArray": "error",
-				"useNumberToFixedDigitsArgument": "error",
-				"useValidTypeof": "error"
+				"useNumberToFixedDigitsArgument": "error"
 
 				// "noConstEnum": "off"
-			},
-			"security": {
-				"all": true
-			},
-			"a11y": {
-				"all": true
-			},
-			"nursery": {
-				"all": true,
-				"useConsistentMemberAccessibility": "off",
-				"noEnum": "off"
 			}
-		}
-	},
-
-	"javascript": {
-		"formatter": {
-			"arrowParentheses": "always",
-			"bracketSameLine": false,
-			"bracketSpacing": true,
-			"enabled": true,
-			"indentStyle": "tab",
-			"indentWidth": 4,
-			"jsxQuoteStyle": "double",
-			"lineEnding": "lf",
-			"lineWidth": 120,
-			"quoteProperties": "asNeeded",
-			"quoteStyle": "double",
-			"semicolons": "always",
-			"trailingCommas": "all"
-		},
-		"globals": ["Bun"],
-		"linter": {
-			"enabled": true
 		}
 	},
 
 	"overrides": [
 		{
-			"include": [".vscode/**", "*.code-workspace", "tsconfig.json"],
-			"ignore": ["garbage/**"],
+			"includes": ["**/.vscode/**", "**/*.code-workspace", "**/tsconfig.json", "!**/garbage/**"],
 			"json": {
-				"parser": {
-					"allowComments": true,
-					"allowTrailingCommas": true
-				},
 				"formatter": {
 					"enabled": true,
 					"indentStyle": "tab",
@@ -181,6 +170,10 @@
 				},
 				"linter": {
 					"enabled": true
+				},
+				"parser": {
+					"allowComments": true,
+					"allowTrailingCommas": true
 				}
 			}
 		}
@@ -219,5 +212,12 @@
 		// 		}
 		// 	}
 		// }
-	]
+	],
+
+	"vcs": {
+		"clientKind": "git",
+		"defaultBranch": "main",
+		"enabled": true,
+		"useIgnoreFile": false
+	}
 }

@@ -1,4 +1,4 @@
-# bun-cli-template
+# bun-playground
 
 To install dependencies:
 

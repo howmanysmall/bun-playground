@@ -1,46 +1,51 @@
 {
-	"description": "A Bun CLI template.",
-	"license": "MIT",
-	"module": "src/index.ts",
-	"name": "bun-cli-template",
-	"private": true,
-	"type": "module",
-	"version": "0.0.1-alpha.0",
-	"scripts": {
-		"build-mini": "bun build ./src/index.ts --target bun --minify --compile --outfile out/bun-cli-template",
-		"build-prod": "bun build --compile --minify --sourcemap ./src/index.ts --outfile out/bun-cli-template",
-		"build": "bun build ./src/index.ts --target bun --compile --outfile out/bun-cli-template",
-		"clean-install": "bun x rimraf node_modules bun.lock && bun install -f",
-		"dev-hot": "bun run --hot --watch src/index.ts",
-		"dev": "bun run --watch src/index.ts",
-		"lint": "bun x biome ci",
-		"start:prod": "NODE_ENV=production bun run src/index.ts",
-		"start": "bun run src/index.ts",
-		"test": "bun test"
+	"bugs": {
+		"url": "https://github.com/howmanysmall/bun-playground/issues"
 	},
+	"dependencies": {
+		"chalk": "^5.4.1",
+		"cheerio": "^1.1.0",
+		"css-select": "^5.1.0",
+		"csv-parse": "^5.6.0",
+		"domhandler": "^5.0.3",
+		"htmlparser2": "^10.0.0",
+		"termost": "^1.4.0",
+		"zod": "^3.25.56",
+		"zod-validation-error": "^3.4.1"
+	},
+	"description": "A Bun CLI template.",
 	"devDependencies": {
-		"@biomejs/biome": "^1.9.4",
+		"@biomejs/biome": "^2.0.5",
 		"@mitata/counters": "^0.0.8",
 		"@types/bun": "latest",
 		"concurrently": "^9.1.2",
 		"mitata": "^1.0.34",
 		"rimraf": "^6.0.1"
 	},
+	"homepage": "https://github.com/howmanysmall/bun-playground#readme",
+	"license": "MIT",
+	"module": "src/index.ts",
+	"name": "bun-playground",
 	"peerDependencies": {
 		"typescript": "^5"
 	},
-	"dependencies": {
-		"chalk": "^5.4.1",
-		"termost": "^1.4.0",
-		"zod": "^3.25.56",
-		"zod-validation-error": "^3.4.1"
-	},
+	"private": true,
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/howmanysmall/bun-cli-template.git"
 	},
-	"bugs": {
-		"url": "https://github.com/howmanysmall/bun-cli-template/issues"
+	"scripts": {
+		"build": "bun build ./src/index.ts --target bun --compile --outfile out/bun-playground",
+		"build-mini": "bun build ./src/index.ts --target bun --minify --compile --outfile out/bun-playground",
+		"build-prod": "bun build --compile --minify --sourcemap ./src/index.ts --outfile out/bun-playground",
+		"clean-install": "bun x rimraf node_modules bun.lock && bun install -f",
+		"dev": "bun run --watch src/index.ts",
+		"dev-hot": "bun run --hot --watch src/index.ts",
+		"lint": "bun x biome ci",
+		"start": "bun run src/index.ts",
+		"start:prod": "NODE_ENV=production bun run src/index.ts",
+		"test": "bun test"
 	},
-	"homepage": "https://github.com/howmanysmall/bun-cli-template#readme"
+	"type": "module",
+	"version": "0.0.1-alpha.0"
 }

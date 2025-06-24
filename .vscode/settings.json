@@ -1,35 +1,39 @@
 {
-	"files.eol": "\n",
-	"[typescript]": {
+	"[json]": {
 		"editor.defaultFormatter": "biomejs.biome",
 		"editor.formatOnSave": true,
+		"editor.quickSuggestions": {
+			"strings": "inline"
+		},
+		"editor.suggest.insertMode": "replace"
+	},
+	"[jsonc]": {
+		"editor.defaultFormatter": "biomejs.biome",
+		"editor.formatOnSave": true,
+		"editor.quickSuggestions": {
+			"strings": "inline"
+		},
+		"editor.suggest.insertMode": "replace"
+	},
+
+	"[typescript]": {
+		"editor.defaultFormatter": "biomejs.biome",
+		"editor.formatOnSave": true
 	},
 	"[typescriptreact]": {
 		"editor.defaultFormatter": "biomejs.biome",
-		"editor.formatOnSave": true,
-	},
-	"[json]": {
-		"editor.quickSuggestions": {
-			"strings": true,
-		},
-		"editor.suggest.insertMode": "replace",
-		"editor.defaultFormatter": "biomejs.biome",
-		"editor.formatOnSave": true,
-	},
-	"[jsonc]": {
-		"editor.quickSuggestions": {
-			"strings": true,
-		},
-		"editor.suggest.insertMode": "replace",
-		"editor.defaultFormatter": "biomejs.biome",
-		"editor.formatOnSave": true,
+		"editor.formatOnSave": true
 	},
 
 	// comment these if your saving takes forever
 	"editor.codeActionsOnSave": {
 		"source.addMissingImports": "explicit",
-		"source.fixAll.eslint": "explicit",
-		"source.removeUnusedImports": "explicit",
+		"source.biome": "explicit",
+		"source.fixAll.biome": "explicit",
+		"source.organizeImports.biome": "explicit",
+		"source.removeUnusedImports": "explicit"
 	},
-	"typescript.inlayHints.functionLikeReturnTypes.enabled": true,
+	
+	"files.eol": "\n",
+	"typescript.inlayHints.functionLikeReturnTypes.enabled": true
 }
