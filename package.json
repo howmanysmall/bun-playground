@@ -1,0 +1,46 @@
+{
+	"description": "A Bun CLI template.",
+	"license": "MIT",
+	"module": "src/index.ts",
+	"name": "bun-cli-template",
+	"private": true,
+	"type": "module",
+	"version": "0.0.1-alpha.0",
+	"scripts": {
+		"build-mini": "bun build ./src/index.ts --target bun --minify --compile --outfile out/bun-cli-template",
+		"build-prod": "bun build --compile --minify --sourcemap ./src/index.ts --outfile out/bun-cli-template",
+		"build": "bun build ./src/index.ts --target bun --compile --outfile out/bun-cli-template",
+		"clean-install": "bun x rimraf node_modules bun.lock && bun install -f",
+		"dev-hot": "bun run --hot --watch src/index.ts",
+		"dev": "bun run --watch src/index.ts",
+		"lint": "bun x biome ci",
+		"start:prod": "NODE_ENV=production bun run src/index.ts",
+		"start": "bun run src/index.ts",
+		"test": "bun test"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^1.9.4",
+		"@mitata/counters": "^0.0.8",
+		"@types/bun": "latest",
+		"concurrently": "^9.1.2",
+		"mitata": "^1.0.34",
+		"rimraf": "^6.0.1"
+	},
+	"peerDependencies": {
+		"typescript": "^5"
+	},
+	"dependencies": {
+		"chalk": "^5.4.1",
+		"termost": "^1.4.0",
+		"zod": "^3.25.56",
+		"zod-validation-error": "^3.4.1"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/howmanysmall/bun-cli-template.git"
+	},
+	"bugs": {
+		"url": "https://github.com/howmanysmall/bun-cli-template/issues"
+	},
+	"homepage": "https://github.com/howmanysmall/bun-cli-template#readme"
+}

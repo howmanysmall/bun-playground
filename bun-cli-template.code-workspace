@@ -1,0 +1,15 @@
+{
+	"folders": [
+		{
+			"name": "bun-cli-template",
+			"path": ".",
+		},
+	],
+	"settings": {
+		"emmet.excludeLanguages": ["markdown", "typescript", "lua", "luau", "typescriptreact"],
+		"files.defaultLanguage": "typescript",
+		"typescript.inlayHints.enumMemberValues.enabled": true,
+		"typescript.inlayHints.parameterNames.enabled": "literals",
+		"luau-lsp.platform.type": "standard",
+	},
+}

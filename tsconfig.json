@@ -1,0 +1,48 @@
+{
+	"compilerOptions": {
+		// Environment setup & latest features
+		"allowJs": false,
+		"jsx": "react-jsx",
+		"lib": ["ESNext"],
+		"module": "ESNext", // "Preserve",
+		"moduleDetection": "force",
+		"outDir": "./dist",
+		"target": "ESNext",
+
+		// Bundler mode
+		"allowImportingTsExtensions": true,
+		"moduleResolution": "bundler",
+		"noEmit": true,
+		"useUnknownInCatchVariables": true,
+		"verbatimModuleSyntax": true,
+
+		// Best practices
+		"noFallthroughCasesInSwitch": true,
+		"noImplicitOverride": true,
+		"noUncheckedIndexedAccess": true,
+		"skipLibCheck": true,
+		"strict": true,
+
+		// Some stricter flags (disabled by default)
+		"noUnusedLocals": false,
+		"noUnusedParameters": false,
+		"noPropertyAccessFromIndexSignature": false,
+
+		"allowSyntheticDefaultImports": true,
+		"downlevelIteration": true,
+		"experimentalDecorators": true,
+		"forceConsistentCasingInFileNames": true,
+		"resolveJsonModule": true,
+		"esModuleInterop": true,
+
+		"paths": {
+			"classes/*": ["classes/*"],
+			"types/*": ["types/*"],
+			"utilities/*": ["utilities/*"],
+		},
+
+		"types": ["bun-types"],
+		"baseUrl": "./src",
+	},
+	"include": ["src/**/*", "benchmarks/**/*", "tests/**/*"],
+}

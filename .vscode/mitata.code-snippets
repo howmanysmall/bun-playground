@@ -1,0 +1,18 @@
+{
+	"Bar Plot Benchmark": {
+		"body": [
+			"import { barplot, bench, run } from \"mitata\";",
+			"",
+			"barplot(() => {",
+				"\tbench(\"${1:numberOne}\", () => {});",
+				"\tbench(\"${2:numberTwo}\", () => {});",
+			"});",
+			"",
+			"await run({});",
+			"",
+		],
+		"description": "Creates a bar plot benchmark for use with Mitata.",
+		"prefix": ["benchmarkbarplot", "benchbarplot"],
+		"scope": "typescript,typescriptreact",
+	},
+}

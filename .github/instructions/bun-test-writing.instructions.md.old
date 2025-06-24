@@ -1,0 +1,200 @@
+---
+applyTo: '**/*.ts'
+---
+
+Define tests with Jest-like API from `bun:test`. Bun aims for full Jest support but currently supports a limited set of `expect` matchers.
+
+## Basic usage
+
+```ts
+import { expect, test } from "bun:test";
+
+test("2 + 2", () => {
+	expect(2 + 2).toBe(4);
+});
+```
+
+## Jest-style globals
+
+Use `describe`, `test`, `expect` without imports; Bun injects them automatically during `bun test`.
+
+```ts
+typeof globalThis.describe; // "undefined"
+typeof describe; // "function"
+```
+
+## Suites with `describe`
+
+```ts
+import { expect, test, describe } from "bun:test";
+
+describe("arithmetic", () => {
+	test("2 + 2", () => expect(2 + 2).toBe(4));
+	test("2 * 2", () => expect(2 * 2).toBe(4));
+});
+```
+
+## Async tests
+
+```ts
+test("2 * 2", async () => {
+	const result = await Promise.resolve(2 * 2);
+	expect(result).toEqual(4);
+});
+```
+
+## `done` callback
+
+```ts
+test("2 * 2", done => {
+	Promise.resolve(2 * 2).then(result => {
+		expect(result).toEqual(4);
+		done();
+	});
+});
+```
+
+## Timeouts
+
+Specify timeout in ms as third arg:
+
+```ts
+test("wat", async () => {
+	const data = await slowOperation();
+	expect(data).toBe(42);
+}, 500);
+```
+
+Default timeout: 5000ms. Timeouts kill spawned processes to avoid zombies.
+
+## `test.skip`
+
+Skip tests:
+
+```ts
+test.skip("wat", () => {
+	expect(0.1 + 0.2).toEqual(0.3);
+});
+```
+
+## `test.todo`
+
+Mark todo tests:
+
+```ts
+test.todo("fix this", () => {
+	myTestFunction();
+});
+```
+
+Run todos with `bun test --todo`. Passing todos count as failures.
+
+## `test.only`
+
+Run specific tests:
+
+```ts
+test.only("test #2", () => {});
+describe.only("only", () => {
+	test("test #3", () => {});
+});
+```
+
+Run with `bun test --only`.
+
+## Conditional tests
+
+```ts
+test.if(Math.random() > 0.5)("half the time", () => {});
+test.if(process.arch === "darwin")("macOS only", () => {});
+test.skipIf(process.arch === "darwin")("non-macOS", () => {});
+test.todoIf(process.arch === "darwin")("posix", () => {});
+```
+
+## `test.failing`
+
+Track failing tests:
+
+```ts
+test.failing("broken math", () => {
+	expect(0.1 + 0.2).toBe(0.3);
+});
+```
+
+## Conditional `describe`
+
+```ts
+describe.if(process.arch === "darwin")("macOS features", () => {
+	test("feature A", () => {});
+	test("feature B", () => {});
+});
+
+describe.skipIf(process.platform === "win32")("Unix", () => {
+	test("feature C", () => {});
+});
+
+describe.todoIf(process.platform === "linux")("Linux support", () => {
+	test("feature D", () => {});
+});
+```
+
+## `test.each` and `describe.each`
+
+Parametrized tests:
+
+```ts
+const cases = [[1, 2, 3], [3, 4, 7]];
+test.each(cases)("%p + %p = %p", (a, b, expected) => {
+	expect(a + b).toBe(expected);
+});
+
+describe.each(cases)("add(%i, %i)", (a, b, expected) => {
+	test(`returns \${expected}`, () => expect(a + b).toBe(expected));
+	test(`greater than inputs`, () => {
+		expect(a + b).toBeGreaterThan(a);
+		expect(a + b).toBeGreaterThan(b);
+	});
+});
+```
+
+Arguments passed as individual items (arrays) or single object.
+
+## Format specifiers
+
+| Placeholder | Meaning               |
+|-------------|-----------------------|
+| `%p`        | pretty-format         |
+| `%s`        | string                |
+| `%d`        | number                |
+| `%i`        | integer               |
+| `%f`        | float                 |
+| `%j`        | JSON                  |
+| `%o`        | object                |
+| `%#`        | index                 |
+| `%%`        | percent sign          |
+
+## Assertions counting
+
+Use `expect.hasAssertions()` to ensure some assertions run:
+
+```ts
+test("async", async () => {
+	expect.hasAssertions();
+	const data = await fetchData();
+	expect(data).toBeDefined();
+});
+```
+
+Use `expect.assertions(n)` to require exact assertion count:
+
+```ts
+test("two asserts", () => {
+	expect.assertions(2);
+	expect(1 + 1).toBe(2);
+	expect("hello").toContain("ell");
+});
+```
+
+## Matchers supported
+
+Includes `.not`, `.toBe()`, `.toEqual()`, `.toBeNull()`, `.toBeUndefined()`, `.toBeNaN()`, `.toBeDefined()`, `.toBeFalsy()`, `.toBeTruthy()`, `.toContain()`, `.toContainAllKeys()`, `.toContainValue()`, `.toContainValues()`, `.toContainAllValues()`, `.toContainAnyValues()`, `.toStrictEqual()`, `.toThrow()`, `.toHaveLength()`, `.toHaveProperty()`, `.extend`, `.anything()`, `.any()`, `.arrayContaining()`, `.assertions()`, `.closeTo()`, `.hasAssertions()`, `.objectContaining()`, `.stringContaining()`, `.stringMatching()`, `.resolves()`, `.rejects()`, `.toHaveBeenCalled()`, `.toHaveBeenCalledTimes()`, `.toHaveBeenCalledWith()`, `.toHaveBeenLastCalledWith()`, `.toHaveBeenNthCalledWith()`, `.toHaveReturned()`, `.toHaveReturnedTimes()`, `.toBeCloseTo()`, `.toBeGreaterThan()`, `.toBeGreaterThanOrEqual()`, `.toBeLessThan()`, `.toBeLessThanOrEqual()`, `.toBeInstanceOf()`, `.toContainEqual()`, `.toMatch()`, `.toMatchObject()`, `.toMatchSnapshot()`, `.toMatchInlineSnapshot()`, `.toThrowErrorMatchingSnapshot()`, `.toThrowErrorMatchingInlineSnapshot()`.

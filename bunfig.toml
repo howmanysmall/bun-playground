@@ -1,0 +1,7 @@
+define = {}
+entry = "src/index.ts"
+run.bun = true
+
+[test]
+coverage = true
+coverageSkipTestFiles = true

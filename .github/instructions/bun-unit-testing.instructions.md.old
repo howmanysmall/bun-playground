@@ -1,0 +1,1239 @@
+---
+applyTo: '**/*.ts'
+---
+
+
+Bun supports two kinds of automatic reloading via CLI flags:
+
+- `--watch` mode, which hard restarts Bun's process when imported files change.
+- `--hot` mode, which soft reloads the code (without restarting the process) when imported files change.
+
+## `--watch` mode
+
+Watch mode can be used with `bun test` or when running TypeScript, JSX, and JavaScript files.
+
+To run a file in `--watch` mode:
+
+```bash
+bun --watch index.tsx
+```
+
+To run your tests in `--watch` mode:
+
+```bash
+bun --watch test
+```
+
+In `--watch` mode, Bun keeps track of all imported files and watches them for changes. When a change is detected, Bun restarts the process, preserving the same set of CLI arguments and environment variables used in the initial run. If Bun crashes, `--watch` will attempt to automatically restart the process.
+
+**⚡️ Reloads are fast.** The filesystem watchers you're probably used to have several layers of libraries wrapping the native APIs or worse, rely on polling.
+
+Instead, Bun uses operating system native filesystem watcher APIs like kqueue or inotify to detect changes to files. Bun also does a number of optimizations to enable it scale to larger projects (such as setting a high rlimit for file descriptors, statically allocated file path buffers, reuse file descriptors when possible, etc).
+
+The following examples show Bun live-reloading a file as it is edited, with VSCode configured to save the file [on each keystroke](https://code.visualstudio.com/docs/editor/codebasics#_save-auto-save).
+
+```bash
+bun run --watch watchy.tsx
+```
+
+```tsx#watchy.tsx
+import { serve } from "bun";
+console.log("I restarted at:", Date.now());
+
+serve({
+ port: 4003,
+
+ fetch(request) {
+ return new Response("Sup");
+ },
+});
+```
+
+In this example, Bun is
+![bun watch gif](https://user-images.githubusercontent.com/709451/228439002-7b9fad11-0db2-4e48-b82d-2b88c8625625.gif)
+
+Running `bun test` in watch mode and `save-on-keypress` enabled:
+
+```bash
+bun --watch test
+```
+
+![bun test gif](https://user-images.githubusercontent.com/709451/228396976-38a23864-4a1d-4c96-87cc-04e5181bf459.gif)
+
+The **`--no-clear-screen`** flag is useful in scenarios where you don’t want the terminal to clear, such as when running multiple `bun build --watch` commands simultaneously using tools like `concurrently`. Without this flag, the output of one instance could clear the output of others, potentially hiding errors from one instance beneath the output of another. The `--no-clear-screen` flag, similar to TypeScript’s `--preserveWatchOutput`, prevents this issue. It can be used in combination with `--watch`, for example: `bun build --watch --no-clear-screen`.
+
+## `--hot` mode
+
+Use `bun --hot` to enable hot reloading when executing code with Bun. This is distinct from `--watch` mode in that Bun does not hard-restart the entire process. Instead, it detects code changes and updates its internal module cache with the new code.
+
+**Note** — This is not the same as hot reloading in the browser! Many frameworks provide a "hot reloading" experience, where you can edit & save your frontend code (say, a React component) and see the changes reflected in the browser without refreshing the page. Bun's `--hot` is the server-side equivalent of this experience. To get hot reloading in the browser, use a framework like [Vite](https://vitejs.dev).
+
+```bash
+bun --hot server.ts
+```
+
+Starting from the entrypoint (`server.ts` in the example above), Bun builds a registry of all imported source files (excluding those in `node_modules`) and watches them for changes. When a change is detected, Bun performs a "soft reload". All files are re-evaluated, but all global state (notably, the `globalThis` object) is persisted.
+
+```ts
+// make TypeScript happy
+declare global {
+ var count: number;
+}
+
+globalThis.count ??= 0;
+console.log(`Reloaded ${globalThis.count} times`);
+globalThis.count++;
+
+// prevent `bun run` from exiting
+setInterval(function () {}, 1000000);
+```
+
+If you run this file with `bun --hot server.ts`, you'll see the reload count increment every time you save the file.
+
+```bash
+bun --hot index.ts
+Reloaded 1 times
+Reloaded 2 times
+Reloaded 3 times
+```
+
+Traditional file watchers like `nodemon` restart the entire process, so HTTP servers and other stateful objects are lost. By contrast, `bun --hot` is able to reflect the updated code without restarting the process.
+
+### HTTP servers
+
+This makes it possible, for instance, to update your HTTP request handler without shutting down the server itself. When you save the file, your HTTP server will be reloaded with the updated code without the process being restarted. This results in seriously fast refresh speeds.
+
+```ts
+globalThis.count ??= 0;
+globalThis.count++;
+
+Bun.serve({
+ fetch(req: Request) {
+ return new Response(`Reloaded ${globalThis.count} times`);
+ },
+ port: 3000,
+});
+```
+
+**Note** — In a future version of Bun, support for Vite's `import.meta.hot` is planned to enable better lifecycle management for hot reloading and to align with the ecosystem.
+
+On hot reload, Bun:
+
+- Resets the internal `require` cache and ES module registry (`Loader.registry`)
+- Runs the garbage collector synchronously (to minimize memory leaks, at the cost of runtime performance)
+- Re-transpiles all of your code from scratch (including sourcemaps)
+- Re-evaluates the code with JavaScriptCore
+
+This implementation isn't particularly optimized. It re-transpiles files that haven't changed. It makes no attempt at incremental compilation. It's a starting point.
+
+Packages on `npm` can define _lifecycle scripts_ in their `package.json`. Some of the most common are below, but there are [many others](https://docs.npmjs.com/cli/v10/using-npm/scripts).
+
+- `preinstall`: Runs before the package is installed
+- `postinstall`: Runs after the package is installed
+- `preuninstall`: Runs before the package is uninstalled
+- `prepublishOnly`: Runs before the package is published
+
+These scripts are arbitrary shell commands that the package manager is expected to read and execute at the appropriate time. But executing arbitrary scripts represents a potential security risk, so—unlike other `npm` clients—Bun does not execute arbitrary lifecycle scripts by default.
+
+## `postinstall`
+
+The `postinstall` script is particularly important. It's widely used to build or install platform-specific binaries for packages that are implemented as [native Node.js add-ons](https://nodejs.org/api/addons.html). For example, `node-sass` is a popular package that uses `postinstall` to build a native binary for Sass.
+
+```json
+{
+ "name": "my-app",
+ "version": "1.0.0",
+ "dependencies": {
+ "node-sass": "^6.0.1"
+ }
+}
+```
+
+## `trustedDependencies`
+
+Instead of executing arbitrary scripts, Bun uses a "default-secure" approach. You can add certain packages to an allow list, and Bun will execute lifecycle scripts for those packages. To tell Bun to allow lifecycle scripts for a particular package, add the package name to `trustedDependencies` array in your `package.json`.
+
+```json-diff
+ {
+ "name": "my-app",
+ "version": "1.0.0",
++ "trustedDependencies": ["node-sass"]
+ }
+```
+
+Once added to `trustedDependencies`, install/re-install the package. Bun will read this field and run lifecycle scripts for `my-trusted-package`.
+
+As of Bun v1.0.16, the top 500 npm packages with lifecycle scripts are allowed by default. You can see the full list [here](https://github.com/oven-sh/bun/blob/main/src/install/default-trusted-dependencies.txt).
+
+## `--ignore-scripts`
+
+To disable lifecycle scripts for all packages, use the `--ignore-scripts` flag.
+
+```bash
+bun install --ignore-scripts
+```
+
+Create mocks with the `mock` function.
+
+```ts
+import { test, expect, mock } from "bun:test";
+const random = mock(() => Math.random());
+
+test("random", async () => {
+ const val = random();
+ expect(val).toBeGreaterThan(0);
+ expect(random).toHaveBeenCalled();
+ expect(random).toHaveBeenCalledTimes(1);
+});
+```
+
+Alternatively, you can use the `jest.fn()` function, as in Jest. It behaves identically.
+
+```ts
+import { test, expect, jest } from "bun:test";
+const random = jest.fn(() => Math.random());
+
+test("random", async () => {
+ const val = random();
+ expect(val).toBeGreaterThan(0);
+ expect(random).toHaveBeenCalled();
+ expect(random).toHaveBeenCalledTimes(1);
+});
+```
+
+The result of `mock()` is a new function that's been decorated with some additional properties.
+
+```ts
+import { mock } from "bun:test";
+const random = mock((multiplier: number) => multiplier * Math.random());
+
+random(2);
+random(10);
+
+random.mock.calls;
+// [[ 2 ], [ 10 ]]
+
+random.mock.results;
+// [
+// { type: "return", value: 0.6533907460954099 },
+// { type: "return", value: 0.6452713933037312 }
+// ]
+```
+
+The following properties and methods are implemented on mock functions.
+
+- [x] [mockFn.getMockName()](https://jestjs.io/docs/mock-function-api#mockfngetmockname)
+- [x] [mockFn.mock.calls](https://jestjs.io/docs/mock-function-api#mockfnmockcalls)
+- [x] [mockFn.mock.results](https://jestjs.io/docs/mock-function-api#mockfnmockresults)
+- [x] [mockFn.mock.instances](https://jestjs.io/docs/mock-function-api#mockfnmockinstances)
+- [x] [mockFn.mock.contexts](https://jestjs.io/docs/mock-function-api#mockfnmockcontexts)
+- [x] [mockFn.mock.lastCall](https://jestjs.io/docs/mock-function-api#mockfnmocklastcall)
+- [x] [mockFn.mockClear()](https://jestjs.io/docs/mock-function-api#mockfnmockclear) - Clears call history
+- [x] [mockFn.mockReset()](https://jestjs.io/docs/mock-function-api#mockfnmockreset) - Clears call history and removes implementation
+- [x] [mockFn.mockRestore()](https://jestjs.io/docs/mock-function-api#mockfnmockrestore) - Restores original implementation
+- [x] [mockFn.mockImplementation(fn)](https://jestjs.io/docs/mock-function-api#mockfnmockimplementationfn)
+- [x] [mockFn.mockImplementationOnce(fn)](https://jestjs.io/docs/mock-function-api#mockfnmockimplementationoncefn)
+- [x] [mockFn.mockName(name)](https://jestjs.io/docs/mock-function-api#mockfnmocknamename)
+- [x] [mockFn.mockReturnThis()](https://jestjs.io/docs/mock-function-api#mockfnmockreturnthis)
+- [x] [mockFn.mockReturnValue(value)](https://jestjs.io/docs/mock-function-api#mockfnmockreturnvaluevalue)
+- [x] [mockFn.mockReturnValueOnce(value)](https://jestjs.io/docs/mock-function-api#mockfnmockreturnvalueoncevalue)
+- [x] [mockFn.mockResolvedValue(value)](https://jestjs.io/docs/mock-function-api#mockfnmockresolvedvaluevalue)
+- [x] [mockFn.mockResolvedValueOnce(value)](https://jestjs.io/docs/mock-function-api#mockfnmockresolvedvalueoncevalue)
+- [x] [mockFn.mockRejectedValue(value)](https://jestjs.io/docs/mock-function-api#mockfnmockrejectedvaluevalue)
+- [x] [mockFn.mockRejectedValueOnce(value)](https://jestjs.io/docs/mock-function-api#mockfnmockrejectedvalueoncevalue)
+- [x] [mockFn.withImplementation(fn, callback)](https://jestjs.io/docs/mock-function-api#mockfnwithimplementationfn-callback)
+
+## `.spyOn()`
+
+It's possible to track calls to a function without replacing it with a mock. Use `spyOn()` to create a spy; these spies can be passed to `.toHaveBeenCalled()` and `.toHaveBeenCalledTimes()`.
+
+```ts
+import { test, expect, spyOn } from "bun:test";
+
+const ringo = {
+ name: "Ringo",
+ sayHi() {
+ console.log(`Hello I'm ${this.name}`);
+ },
+};
+
+const spy = spyOn(ringo, "sayHi");
+
+test("spyon", () => {
+ expect(spy).toHaveBeenCalledTimes(0);
+ ringo.sayHi();
+ expect(spy).toHaveBeenCalledTimes(1);
+});
+```
+
+## Module mocks with `mock.module()`
+
+Module mocking lets you override the behavior of a module. Use `mock.module(path: string, callback: () => Object)` to mock a module.
+
+```ts
+import { test, expect, mock } from "bun:test";
+
+mock.module("./module", () => {
+ return {
+ foo: "bar",
+ };
+});
+
+test("mock.module", async () => {
+ const esm = await import("./module");
+ expect(esm.foo).toBe("bar");
+
+ const cjs = require("./module");
+ expect(cjs.foo).toBe("bar");
+});
+```
+
+Like the rest of Bun, module mocks support both `import` and `require`.
+
+### Overriding already imported modules
+
+If you need to override a module that's already been imported, there's nothing special you need to do. Just call `mock.module()` and the module will be overridden.
+
+```ts
+import { test, expect, mock } from "bun:test";
+
+// The module we're going to mock is here:
+import { foo } from "./module";
+
+test("mock.module", async () => {
+ const cjs = require("./module");
+ expect(foo).toBe("bar");
+ expect(cjs.foo).toBe("bar");
+
+ // We update it here:
+ mock.module("./module", () => {
+ return {
+ foo: "baz",
+ };
+ });
+
+ // And the live bindings are updated.
+ expect(foo).toBe("baz");
+
+ // The module is also updated for CJS.
+ expect(cjs.foo).toBe("baz");
+});
+```
+
+### Hoisting & preloading
+
+If you need to ensure a module is mocked before it's imported, you should use `--preload` to load your mocks before your tests run.
+
+```ts
+// my-preload.ts
+import { mock } from "bun:test";
+
+mock.module("./module", () => {
+ return {
+ foo: "bar",
+ };
+});
+```
+
+```sh
+bun test --preload ./my-preload
+```
+
+To make your life easier, you can put `preload` in your `bunfig.toml`:
+
+```toml
+
+[test]
+# Load these modules before running tests.
+preload = ["./my-preload"]
+
+```
+
+#### What happens if I mock a module that's already been imported?
+
+If you mock a module that's already been imported, the module will be updated in the module cache. This means that any modules that import the module will get the mocked version, BUT the original module will still have been evaluated. That means that any side effects from the original module will still have happened.
+
+If you want to prevent the original module from being evaluated, you should use `--preload` to load your mocks before your tests run.
+
+### `__mocks__` directory and auto-mocking
+
+Auto-mocking is not supported yet. If this is blocking you from switching to Bun, please file an issue.
+
+### Implementation details
+
+Module mocks have different implementations for ESM and CommonJS modules. For ES Modules, we've added patches to JavaScriptCore that allow Bun to override export values at runtime and update live bindings recursively.
+
+As of Bun v1.0.19, Bun automatically resolves the `specifier` argument to `mock.module()` as though you did an `import`. If it successfully resolves, then the resolved specifier string is used as the key in the module cache. This means that you can use relative paths, absolute paths, and even module names. If the `specifier` doesn't resolve, then the original `specifier` is used as the key in the module cache.
+
+After resolution, the mocked module is stored in the ES Module registry **and** the CommonJS require cache. This means that you can use `import` and `require` interchangeably for mocked modules.
+
+The callback function is called lazily, only if the module is imported or required. This means that you can use `mock.module()` to mock modules that don't exist yet, and it means that you can use `mock.module()` to mock modules that are imported by other modules.
+
+### Module Mock Implementation Details
+
+Understanding how `mock.module()` works helps you use it more effectively:
+
+1. **Cache Interaction**: Module mocks interacts with both ESM and CommonJS module caches.
+
+2. **Lazy Evaluation**: The mock factory callback is only evaluated when the module is actually imported or required.
+
+3. **Path Resolution**: Bun automatically resolves the module specifier as though you were doing an import, supporting:
+
+ - Relative paths (`'./module'`)
+ - Absolute paths (`'/path/to/module'`)
+ - Package names (`'lodash'`)
+
+4. **Import Timing Effects**:
+
+ - When mocking before first import: No side effects from the original module occur
+ - When mocking after import: The original module's side effects have already happened
+ - For this reason, using `--preload` is recommended for mocks that need to prevent side effects
+
+5. **Live Bindings**: Mocked ESM modules maintain live bindings, so changing the mock will update all existing imports
+
+## Global Mock Functions
+
+### Clear all mocks with `mock.clearAllMocks()`
+
+Reset all mock function state (calls, results, etc.) without restoring their original implementation:
+
+```ts
+import { expect, mock, test } from "bun:test";
+
+const random1 = mock(() => Math.random());
+const random2 = mock(() => Math.random());
+
+test("clearing all mocks", () => {
+ random1();
+ random2();
+
+ expect(random1).toHaveBeenCalledTimes(1);
+ expect(random2).toHaveBeenCalledTimes(1);
+
+ mock.clearAllMocks();
+
+ expect(random1).toHaveBeenCalledTimes(0);
+ expect(random2).toHaveBeenCalledTimes(0);
+
+ // Note: implementations are preserved
+ expect(typeof random1()).toBe("number");
+ expect(typeof random2()).toBe("number");
+});
+```
+
+This resets the `.mock.calls`, `.mock.instances`, `.mock.contexts`, and `.mock.results` properties of all mocks, but unlike `mock.restore()`, it does not restore the original implementation.
+
+### Restore all function mocks with `mock.restore()`
+
+Instead of manually restoring each mock individually with `mockFn.mockRestore()`, restore all mocks with one command by calling `mock.restore()`. Doing so does not reset the value of modules overridden with `mock.module()`.
+
+Using `mock.restore()` can reduce the amount of code in your tests by adding it to `afterEach` blocks in each test file or even in your [test preload code](https://bun.sh/docs/runtime/bunfig#test-preload).
+
+```ts
+import { expect, mock, spyOn, test } from "bun:test";
+
+import * as fooModule from "./foo.ts";
+import * as barModule from "./bar.ts";
+import * as bazModule from "./baz.ts";
+
+test("foo, bar, baz", () => {
+ const fooSpy = spyOn(fooModule, "foo");
+ const barSpy = spyOn(barModule, "bar");
+ const bazSpy = spyOn(bazModule, "baz");
+
+ expect(fooSpy).toBe("foo");
+ expect(barSpy).toBe("bar");
+ expect(bazSpy).toBe("baz");
+
+ fooSpy.mockImplementation(() => 42);
+ barSpy.mockImplementation(() => 43);
+ bazSpy.mockImplementation(() => 44);
+
+ expect(fooSpy).toBe(42);
+ expect(barSpy).toBe(43);
+ expect(bazSpy).toBe(44);
+
+ mock.restore();
+
+ expect(fooSpy).toBe("foo");
+ expect(barSpy).toBe("bar");
+ expect(bazSpy).toBe("baz");
+});
+```
+
+## Vitest Compatibility
+
+For added compatibility with tests written for [Vitest](https://vitest.dev/), Bun provides the `vi` global object as an alias for parts of the Jest mocking API:
+
+```ts
+import { test, expect } from "bun:test";
+
+// Using the 'vi' alias similar to Vitest
+test("vitest compatibility", () => {
+ const mockFn = vi.fn(() => 42);
+
+ mockFn();
+ expect(mockFn).toHaveBeenCalled();
+
+ // The following functions are available on the vi object:
+ // vi.fn
+ // vi.spyOn
+ // vi.mock
+ // vi.restoreAllMocks
+ // vi.clearAllMocks
+});
+```
+
+This makes it easier to port tests from Vitest to Bun without having to rewrite all your mocks.
+
+Snapshot testing saves the output of a value and compares it against future test runs. This is particularly useful for UI components, complex objects, or any output that needs to remain consistent.
+
+## Basic snapshots
+
+Snapshot tests are written using the `.toMatchSnapshot()` matcher:
+
+```ts
+import { test, expect } from "bun:test";
+
+test("snap", () => {
+ expect("foo").toMatchSnapshot();
+});
+```
+
+The first time this test is run, the argument to `expect` will be serialized and written to a special snapshot file in a `__snapshots__` directory alongside the test file. On future runs, the argument is compared against the snapshot on disk. Snapshots can be re-generated with the following command:
+
+```bash
+bun test --update-snapshots
+```
+
+## Inline snapshots
+
+For smaller values, you can use inline snapshots with `.toMatchInlineSnapshot()`. These snapshots are stored directly in your test file:
+
+```ts
+import { test, expect } from "bun:test";
+
+test("inline snapshot", () => {
+ // First run: snapshot will be inserted automatically
+ expect({ hello: "world" }).toMatchInlineSnapshot();
+
+ // After first run, the test file will be updated to:
+ // expect({ hello: "world" }).toMatchInlineSnapshot(`
+ // {
+ // "hello": "world",
+ // }
+ // `);
+});
+```
+
+When you run the test, Bun automatically updates the test file itself with the generated snapshot string. This makes the tests more portable and easier to understand, since the expected output is right next to the test.
+
+### Using inline snapshots
+
+1. Write your test with `.toMatchInlineSnapshot()`
+2. Run the test once
+3. Bun automatically updates your test file with the snapshot
+4. On subsequent runs, the value will be compared against the inline snapshot
+
+Inline snapshots are particularly useful for small, simple values where it's helpful to see the expected output right in the test file.
+
+## Error snapshots
+
+You can also snapshot error messages using `.toThrowErrorMatchingSnapshot()` and `.toThrowErrorMatchingInlineSnapshot()`:
+
+```ts
+import { test, expect } from "bun:test";
+
+test("error snapshot", () => {
+ expect(() => {
+ throw new Error("Something went wrong");
+ }).toThrowErrorMatchingSnapshot();
+
+ expect(() => {
+ throw new Error("Another error");
+ }).toThrowErrorMatchingInlineSnapshot();
+});
+```
+
+`bun:test` lets you change what time it is in your tests.
+
+This works with any of the following:
+
+- `Date.now`
+- `new Date()`
+- `new Intl.DateTimeFormat().format()`
+
+Timers are not impacted yet, but may be in a future release of Bun.
+
+## `setSystemTime`
+
+To change the system time, use `setSystemTime`:
+
+```ts
+import { setSystemTime, beforeAll, test, expect } from "bun:test";
+
+beforeAll(() => {
+ setSystemTime(new Date("2020-01-01T00:00:00.000Z"));
+});
+
+test("it is 2020", () => {
+ expect(new Date().getFullYear()).toBe(2020);
+});
+```
+
+To support existing tests that use Jest's `useFakeTimers` and `useRealTimers`, you can use `useFakeTimers` and `useRealTimers`:
+
+```ts
+test("just like in jest", () => {
+ jest.useFakeTimers();
+ jest.setSystemTime(new Date("2020-01-01T00:00:00.000Z"));
+ expect(new Date().getFullYear()).toBe(2020);
+ jest.useRealTimers();
+ expect(new Date().getFullYear()).toBeGreaterThan(2020);
+});
+
+test("unlike in jest", () => {
+ const OriginalDate = Date;
+ jest.useFakeTimers();
+ if (typeof Bun === "undefined") {
+ // In Jest, the Date constructor changes
+ // That can cause all sorts of bugs because suddenly Date !== Date before the test.
+ expect(Date).not.toBe(OriginalDate);
+ expect(Date.now).not.toBe(OriginalDate.now);
+ } else {
+ // In bun:test, Date constructor does not change when you useFakeTimers
+ expect(Date).toBe(OriginalDate);
+ expect(Date.now).toBe(OriginalDate.now);
+ }
+});
+```
+
+**Timers** — Note that we have not implemented builtin support for mocking timers yet, but this is on the roadmap.
+
+### Reset the system time
+
+To reset the system time, pass no arguments to `setSystemTime`:
+
+```ts
+import { setSystemTime, expect, test } from "bun:test";
+
+test("it was 2020, for a moment.", () => {
+ // Set it to something!
+ setSystemTime(new Date("2020-01-01T00:00:00.000Z"));
+ expect(new Date().getFullYear()).toBe(2020);
+
+ // reset it!
+ setSystemTime();
+
+ expect(new Date().getFullYear()).toBeGreaterThan(2020);
+});
+```
+
+## Get mocked time with `jest.now()`
+
+When you're using mocked time (with `setSystemTime` or `useFakeTimers`), you can use `jest.now()` to get the current mocked timestamp:
+
+```ts
+import { test, expect, jest } from "bun:test";
+
+test("get the current mocked time", () => {
+ jest.useFakeTimers();
+ jest.setSystemTime(new Date("2020-01-01T00:00:00.000Z"));
+
+ expect(Date.now()).toBe(1577836800000); // Jan 1, 2020 timestamp
+ expect(jest.now()).toBe(1577836800000); // Same value
+
+ jest.useRealTimers();
+});
+```
+
+This is useful when you need to access the mocked time directly without creating a new Date object.
+
+## Set the time zone
+
+By default, the time zone for all `bun test` runs is set to UTC (`Etc/UTC`) unless overridden. To change the time zone, either pass the `$TZ` environment variable to `bun test`.
+
+```sh
+TZ=America/Los_Angeles bun test
+```
+
+Or set `process.env.TZ` at runtime:
+
+```ts
+import { test, expect } from "bun:test";
+
+test("Welcome to California!", () => {
+ process.env.TZ = "America/Los_Angeles";
+ expect(new Date().getTimezoneOffset()).toBe(420);
+ expect(new Intl.DateTimeFormat().resolvedOptions().timeZone).toBe(
+ "America/Los_Angeles",
+ );
+});
+
+test("Welcome to New York!", () => {
+ // Unlike in Jest, you can set the timezone multiple times at runtime and it will work.
+ process.env.TZ = "America/New_York";
+ expect(new Date().getTimezoneOffset()).toBe(240);
+ expect(new Intl.DateTimeFormat().resolvedOptions().timeZone).toBe(
+ "America/New_York",
+ );
+});
+```
+
+Bun's test runner now supports built-in _code coverage reporting_. This makes it easy to see how much of the codebase is covered by tests, and find areas that are not currently well-tested.
+
+## Enabling coverage
+
+`bun:test` supports seeing which lines of code are covered by tests. To use this feature, pass `--coverage` to the CLI. It will print out a coverage report to the console:
+
+```js
+bun test --coverage
+-------------|---------|---------|-------------------
+File | % Funcs | % Lines | Uncovered Line #s
+-------------|---------|---------|-------------------
+All files | 38.89 | 42.11 |
+ index-0.ts | 33.33 | 36.84 | 10-15,19-24
+ index-1.ts | 33.33 | 36.84 | 10-15,19-24
+ index-10.ts | 33.33 | 36.84 | 10-15,19-24
+ index-2.ts | 33.33 | 36.84 | 10-15,19-24
+ index-3.ts | 33.33 | 36.84 | 10-15,19-24
+ index-4.ts | 33.33 | 36.84 | 10-15,19-24
+ index-5.ts | 33.33 | 36.84 | 10-15,19-24
+ index-6.ts | 33.33 | 36.84 | 10-15,19-24
+ index-7.ts | 33.33 | 36.84 | 10-15,19-24
+ index-8.ts | 33.33 | 36.84 | 10-15,19-24
+ index-9.ts | 33.33 | 36.84 | 10-15,19-24
+ index.ts | 100.00 | 100.00 |
+-------------|---------|---------|-------------------
+```
+
+To always enable coverage reporting by default, add the following line to your `bunfig.toml`:
+
+```toml
+[test]
+
+# always enable coverage
+coverage = true
+```
+
+By default coverage reports will _include_ test files and _exclude_ sourcemaps. This is usually what you want, but it can be configured otherwise in `bunfig.toml`.
+
+```toml
+[test]
+coverageSkipTestFiles = true # default false
+```
+
+### Coverage thresholds
+
+It is possible to specify a coverage threshold in `bunfig.toml`. If your test suite does not meet or exceed this threshold, `bun test` will exit with a non-zero exit code to indicate the failure.
+
+```toml
+[test]
+
+# to require 90% line-level and function-level coverage
+coverageThreshold = 0.9
+
+# to set different thresholds for lines and functions
+coverageThreshold = { lines = 0.9, functions = 0.9, statements = 0.9 }
+```
+
+Setting any of these thresholds enables `fail_on_low_coverage`, causing the test run to fail if coverage is below the threshold.
+
+### Exclude test files from coverage
+
+By default, test files themselves are included in coverage reports. You can exclude them with:
+
+```toml
+[test]
+coverageSkipTestFiles = true # default false
+```
+
+This will exclude files matching test patterns (e.g., _.test.ts, \_\_spec.js) from the coverage report.
+
+### Sourcemaps
+
+Internally, Bun transpiles all files by default, so Bun automatically generates an internal [source map](https://web.dev/source-maps/) that maps lines of your original source code onto Bun's internal representation. If for any reason you want to disable this, set `test.coverageIgnoreSourcemaps` to `true`; this will rarely be desirable outside of advanced use cases.
+
+```toml
+[test]
+coverageIgnoreSourcemaps = true # default false
+```
+
+### Coverage defaults
+
+By default, coverage reports:
+
+1. Exclude `node_modules` directories
+2. Exclude files loaded via non-JS/TS loaders (e.g., .css, .txt) unless a custom JS loader is specified
+3. Include test files themselves (can be disabled with `coverageSkipTestFiles = true` as shown above)
+
+### Coverage reporters
+
+By default, coverage reports will be printed to the console.
+
+For persistent code coverage reports in CI environments and for other tools, you can pass a `--coverage-reporter=lcov` CLI option or `coverageReporter` option in `bunfig.toml`.
+
+```toml
+[test]
+coverageReporter = ["text", "lcov"] # default ["text"]
+coverageDir = "path/to/somewhere" # default "coverage"
+```
+
+| Reporter | Description |
+| -------- | --------------------------------------------------------------------------- |
+| `text` | Prints a text summary of the coverage to the console. |
+| `lcov` | Save coverage in [lcov](https://github.com/linux-test-project/lcov) format. |
+
+#### lcov coverage reporter
+
+To generate an lcov report, you can use the `lcov` reporter. This will generate an `lcov.info` file in the `coverage` directory.
+
+```toml
+[test]
+coverageReporter = "lcov"
+```
+
+bun test supports different output formats through reporters. This document covers both built-in reporters and how to implement your own custom reporters.
+
+## Built-in Reporters
+
+### Default Console Reporter
+
+By default, bun test outputs results to the console in a human-readable format:
+
+```sh
+test/package-json-lint.test.ts:
+✓ test/package.json [0.88ms]
+✓ test/js/third_party/grpc-js/package.json [0.18ms]
+✓ test/js/third_party/svelte/package.json [0.21ms]
+✓ test/js/third_party/express/package.json [1.05ms]
+
+ 4 pass
+ 0 fail
+ 4 expect() calls
+Ran 4 tests in 1.44ms
+```
+
+When a terminal doesn't support colors, the output avoids non-ascii characters:
+
+```sh
+test/package-json-lint.test.ts:
+(pass) test/package.json [0.48ms]
+(pass) test/js/third_party/grpc-js/package.json [0.10ms]
+(pass) test/js/third_party/svelte/package.json [0.04ms]
+(pass) test/js/third_party/express/package.json [0.04ms]
+
+ 4 pass
+ 0 fail
+ 4 expect() calls
+Ran 4 tests across 1 files. [0.66ms]
+```
+
+### JUnit XML Reporter
+
+For CI/CD environments, Bun supports generating JUnit XML reports. JUnit XML is a widely-adopted format for test results that can be parsed by many CI/CD systems, including GitLab, Jenkins, and others.
+
+#### Using the JUnit Reporter
+
+To generate a JUnit XML report, use the `--reporter=junit` flag along with `--reporter-outfile` to specify the output file:
+
+```sh
+bun test --reporter=junit --reporter-outfile=./junit.xml
+```
+
+This continues to output to the console as usual while also writing the JUnit XML report to the specified path at the end of the test run.
+
+#### Configuring via bunfig.toml
+
+You can also configure the JUnit reporter in your `bunfig.toml` file:
+
+```toml
+[test.reporter]
+junit = "path/to/junit.xml" # Output path for JUnit XML report
+```
+
+#### Environment Variables in JUnit Reports
+
+The JUnit reporter automatically includes environment information as `<properties>` in the XML output. This can be helpful for tracking test runs in CI environments.
+
+Specifically, it includes the following environment variables when available:
+
+| Environment Variable | Property Name | Description |
+| ----------------------------------------------------------------------- | ------------- | ---------------------- |
+| `GITHUB_RUN_ID`, `GITHUB_SERVER_URL`, `GITHUB_REPOSITORY`, `CI_JOB_URL` | `ci` | CI build information |
+| `GITHUB_SHA`, `CI_COMMIT_SHA`, `GIT_SHA` | `commit` | Git commit identifiers |
+| System hostname | `hostname` | Machine hostname |
+
+This makes it easier to track which environment and commit a particular test run was for.
+
+#### Current Limitations
+
+The JUnit reporter currently has a few limitations that will be addressed in future updates:
+
+- `stdout` and `stderr` output from individual tests are not included in the report
+- Precise timestamp fields per test case are not included
+
+### GitHub Actions reporter
+
+Bun test automatically detects when it's running inside GitHub Actions and emits GitHub Actions annotations to the console directly. No special configuration is needed beyond installing Bun and running `bun test`.
+
+For a GitHub Actions workflow configuration example, see the [CI/CD integration](../cli/test.md#cicd-integration) section of the CLI documentation.
+
+## Custom Reporters
+
+Bun allows developers to implement custom test reporters by extending the WebKit Inspector Protocol with additional testing-specific domains.
+
+### Inspector Protocol for Testing
+
+To support test reporting, Bun extends the standard WebKit Inspector Protocol with two custom domains:
+
+1. **TestReporter**: Reports test discovery, execution start, and completion events
+2. **LifecycleReporter**: Reports errors and exceptions during test execution
+
+These extensions allow you to build custom reporting tools that can receive detailed information about test execution in real-time.
+
+### Key Events
+
+Custom reporters can listen for these key events:
+
+- `TestReporter.found`: Emitted when a test is discovered
+- `TestReporter.start`: Emitted when a test starts running
+- `TestReporter.end`: Emitted when a test completes
+- `Console.messageAdded`: Emitted when console output occurs during a test
+- `LifecycleReporter.error`: Emitted when an error or exception occurs
+
+Configure `bun test` via `bunfig.toml` file and command-line options. This page documents the available configuration options for `bun test`.
+
+## bunfig.toml options
+
+You can configure `bun test` behavior by adding a `[test]` section to your `bunfig.toml` file:
+
+```toml
+[test]
+# Options go here
+```
+
+### Test discovery
+
+#### root
+
+The `root` option specifies a root directory for test discovery, overriding the default behavior of scanning from the project root.
+
+```toml
+[test]
+root = "src" # Only scan for tests in the src directory
+```
+
+### Reporters
+
+#### reporter.junit
+
+Configure the JUnit reporter output file path directly in the config file:
+
+```toml
+[test.reporter]
+junit = "path/to/junit.xml" # Output path for JUnit XML report
+```
+
+This complements the `--reporter=junit` and `--reporter-outfile` CLI flags.
+
+### Memory usage
+
+#### smol
+
+Enable the `--smol` memory-saving mode specifically for the test runner:
+
+```toml
+[test]
+smol = true # Reduce memory usage during test runs
+```
+
+This is equivalent to using the `--smol` flag on the command line.
+
+### Coverage options
+
+In addition to the options documented in the [coverage documentation](./coverage.md), the following options are available:
+
+#### coverageSkipTestFiles
+
+Exclude files matching test patterns (e.g., \*.test.ts) from the coverage report:
+
+```toml
+[test]
+coverageSkipTestFiles = true # Exclude test files from coverage reports
+```
+
+#### coverageThreshold (Object form)
+
+The coverage threshold can be specified either as a number (as shown in the coverage documentation) or as an object with specific thresholds:
+
+```toml
+[test]
+# Set specific thresholds for different coverage metrics
+coverageThreshold = { lines = 0.9, functions = 0.8, statements = 0.85 }
+```
+
+Setting any of these enables `fail_on_low_coverage`, causing the test run to fail if coverage is below the threshold.
+
+#### coverageIgnoreSourcemaps
+
+Internally, Bun transpiles every file. That means code coverage must also go through sourcemaps before they can be reported. We expose this as a flag to allow you to opt out of this behavior, but it will be confusing because during the transpilation process, Bun may move code around and change variable names. This option is mostly useful for debugging coverage issues.
+
+```toml
+[test]
+coverageIgnoreSourcemaps = true # Don't use sourcemaps for coverage analysis
+```
+
+When using this option, you probably want to stick a `// @bun` comment at the top of the source file to opt out of the transpilation process.
+
+### Install settings inheritance
+
+The `bun test` command inherits relevant network and installation configuration (registry, cafile, prefer, exact, etc.) from the `[install]` section of bunfig.toml. This is important if tests need to interact with private registries or require specific install behaviors triggered during the test run.
+
+`bun test` is deeply integrated with Bun's runtime. This is part of what makes `bun test` fast and simple to use.
+
+#### `$NODE_ENV` environment variable
+
+`bun test` automatically sets `$NODE_ENV` to `"test"` unless it's already set in the environment or via .env files. This is standard behavior for most test runners and helps ensure consistent test behavior.
+
+```ts
+import { test, expect } from "bun:test";
+
+test("NODE_ENV is set to test", () => {
+ expect(process.env.NODE_ENV).toBe("test");
+});
+```
+
+#### `$TZ` environment variable
+
+By default, all `bun test` runs use UTC (`Etc/UTC`) as the time zone unless overridden by the `TZ` environment variable. This ensures consistent date and time behavior across different development environments.
+
+#### Test Timeouts
+
+Each test has a default timeout of 5000ms (5 seconds) if not explicitly overridden. Tests that exceed this timeout will fail. This can be changed globally with the `--timeout` flag or per-test as the third parameter to the test function.
+
+## Error Handling
+
+### Unhandled Errors
+
+`bun test` tracks unhandled promise rejections and errors that occur between tests. If such errors occur, the final exit code will be non-zero (specifically, the count of such errors), even if all tests pass.
+
+This helps catch errors in asynchronous code that might otherwise go unnoticed:
+
+```ts
+import { test } from "bun:test";
+
+test("test 1", () => {
+ // This test passes
+});
+
+// This error happens outside any test
+setTimeout(() => {
+ throw new Error("Unhandled error");
+}, 0);
+
+test("test 2", () => {
+ // This test also passes
+});
+
+// The test run will still fail with a non-zero exit code
+// because of the unhandled error
+```
+
+Internally, this occurs with a higher precedence than `process.on("unhandledRejection")` or `process.on("uncaughtException")`, which makes it simpler to integrate with existing code.
+
+## Using General CLI Flags with Tests
+
+Several Bun CLI flags can be used with `bun test` to modify its behavior:
+
+### Memory Usage
+
+- `--smol`: Reduces memory usage for the test runner VM
+
+### Debugging
+
+- `--inspect`, `--inspect-brk`: Attaches the debugger to the test runner process
+
+### Module Loading
+
+- `--preload`: Runs scripts before test files (useful for global setup/mocks)
+- `--define`: Sets compile-time constants
+- `--loader`: Configures custom loaders
+- `--tsconfig-override`: Uses a different tsconfig
+- `--conditions`: Sets package.json conditions for module resolution
+- `--env-file`: Loads environment variables for tests
+
+### Installation-related Flags
+
+- `--prefer-offline`, `--frozen-lockfile`, etc.: Affect any network requests or auto-installs during test execution
+
+## Watch and Hot Reloading
+
+When running `bun test` with the `--watch` flag, the test runner will watch for file changes and re-run affected tests.
+
+The `--hot` flag provides similar functionality but is more aggressive about trying to preserve state between runs. For most test scenarios, `--watch` is the recommended option.
+
+## Global Variables
+
+The following globals are automatically available in test files without importing (though they can be imported from `bun:test` if preferred):
+
+- `test`, `it`: Define tests
+- `describe`: Group tests
+- `expect`: Make assertions
+- `beforeAll`, `beforeEach`, `afterAll`, `afterEach`: Lifecycle hooks
+- `jest`: Jest global object
+- `vi`: Vitest compatibility alias for common jest methods
+
+bun test's file discovery mechanism determines which files to run as tests. Understanding how it works helps you structure your test files effectively.
+
+## Default Discovery Logic
+
+By default, `bun test` recursively searches the project directory for files that match specific patterns:
+
+- `*.test.{js|jsx|ts|tsx}` - Files ending with `.test.js`, `.test.jsx`, `.test.ts`, or `.test.tsx`
+- `*_test.{js|jsx|ts|tsx}` - Files ending with `_test.js`, `_test.jsx`, `_test.ts`, or `_test.tsx`
+- `*.spec.{js|jsx|ts|tsx}` - Files ending with `.spec.js`, `.spec.jsx`, `.spec.ts`, or `.spec.tsx`
+- `*_spec.{js|jsx|ts|tsx}` - Files ending with `_spec.js`, `_spec.jsx`, `_spec.ts`, or `_spec.tsx`
+
+## Exclusions
+
+By default, Bun test ignores:
+
+- `node_modules` directories
+- Hidden directories (those starting with a period `.`)
+- Files that don't have JavaScript-like extensions (based on available loaders)
+
+## Customizing Test Discovery
+
+### Position Arguments as Filters
+
+You can filter which test files run by passing additional positional arguments to `bun test`:
+
+```bash
+bun test <filter> <filter> ...
+```
+
+Any test file with a path that contains one of the filters will run. These filters are simple substring matches, not glob patterns.
+
+For example, to run all tests in a `utils` directory:
+
+```bash
+bun test utils
+```
+
+This would match files like `src/utils/string.test.ts` and `lib/utils/array_test.js`.
+
+### Specifying Exact File Paths
+
+To run a specific file in the test runner, make sure the path starts with `./` or `/` to distinguish it from a filter name:
+
+```bash
+bun test ./test/specific-file.test.ts
+```
+
+### Filter by Test Name
+
+To filter tests by name rather than file path, use the `-t`/`--test-name-pattern` flag with a regex pattern:
+
+```sh
+# run all tests with "addition" in the name
+bun test --test-name-pattern addition
+```
+
+The pattern is matched against a concatenated string of the test name prepended with the labels of all its parent describe blocks, separated by spaces. For example, a test defined as:
+
+```js
+describe("Math", () => {
+ describe("operations", () => {
+ test("should add correctly", () => {
+ // ...
+ });
+ });
+});
+```
+
+Would be matched against the string "Math operations should add correctly".
+
+### Changing the Root Directory
+
+By default, Bun looks for test files starting from the current working directory. You can change this with the `root` option in your `bunfig.toml`:
+
+```toml
+[test]
+root = "src" # Only scan for tests in the src directory
+```
+
+## Execution Order
+
+Tests are run in the following order:
+
+1. Test files are executed sequentially (not in parallel)
+2. Within each file, tests run sequentially based on their definition order
+
+Bun's test runner plays well with existing component and DOM testing libraries, including React Testing Library and [`happy-dom`](https://github.com/capricorn86/happy-dom).
+
+## `happy-dom`
+
+For writing headless tests for your frontend code and components, we recommend [`happy-dom`](https://github.com/capricorn86/happy-dom). Happy DOM implements a complete set of HTML and DOM APIs in plain JavaScript, making it possible to simulate a browser environment with high fidelity.
+
+To get started install the `@happy-dom/global-registrator` package as a dev dependency.
+
+```bash
+bun add -d @happy-dom/global-registrator
+```
+
+We'll be using Bun's _preload_ functionality to register the `happy-dom` globals before running our tests. This step will make browser APIs like `document` available in the global scope. Create a file called `happydom.ts` in the root of your project and add the following code:
+
+```ts
+import { GlobalRegistrator } from "@happy-dom/global-registrator";
+
+GlobalRegistrator.register();
+```
+
+To preload this file before `bun test`, open or create a `bunfig.toml` file and add the following lines.
+
+```toml
+[test]
+preload = "./happydom.ts"
+```
+
+This will execute `happydom.ts` when you run `bun test`. Now you can write tests that use browser APIs like `document` and `window`.
+
+```ts
+import {test, expect} from 'bun:test';
+
+test('dom test', () => {
+ document.body.innerHTML = `<button>My button</button>`;
+ const button = document.querySelector('button');
+ expect(button?.innerText).toEqual('My button');
+});
+```
+
+Depending on your `tsconfig.json` setup, you may see a `"Cannot find name 'document'"` type error in the code above. To "inject" the types for `document` and other browser APIs, add the following [triple-slash directive](https://www.typescriptlang.org/docs/handbook/triple-slash-directives.html) to the top of any test file.
+
+```ts-diff
++ /// <reference lib="dom" />
+
+ import {test, expect} from 'bun:test';
+
+ test('dom test', () => {
+ document.body.innerHTML = `<button>My button</button>`;
+ const button = document.querySelector('button');
+ expect(button?.innerText).toEqual('My button');
+ });
+```
+
+Let's run this test with `bun test`:
+
+```bash
+bun test
+bun test v$BUN_LATEST_VERSION
+
+dom.test.ts:
+✓ dom test [0.82ms]
+
+ 1 pass
+ 0 fail
+ 1 expect() calls
+Ran 1 tests across 1 files. 1 total [125.00ms]
+```
