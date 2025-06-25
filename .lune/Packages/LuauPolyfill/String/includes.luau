@@ -31,7 +31,7 @@ local function includes(value: string, substring: string, position: nil | number
 	end
 
 	local initial = utf8.offset(value, startIndex)
-	return string.find(value, string.gsub(substring, luauPatternCharacters, "%%%1"), initial) ~= nil
+	return (string.find(value, (string.gsub(substring, luauPatternCharacters, "%%%1")), initial)) ~= nil
 end
 
 return includes

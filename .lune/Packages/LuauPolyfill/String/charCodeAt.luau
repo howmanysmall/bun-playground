@@ -29,5 +29,5 @@ return function(value: string, index: number): number
 		return NaN
 	end
 
-	return utf8.codepoint(value, offset, offset) or NaN
+	return (utf8.codepoint(value, offset, offset)) or NaN
 end

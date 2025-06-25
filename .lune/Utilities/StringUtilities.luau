@@ -165,4 +165,10 @@ local function ToKebabCaseSafe(value: string): string
 end
 StringUtilities.ToKebabCaseSafe = ToKebabCaseSafe
 
+local function TrimAnsi(value: string): string
+	GreenTeaAssert(IsString, value, TrimAnsi, TypeError)
+	return (string.gsub(value, "\27%[[%d;?]*[A-Za-z]", ""))
+end
+StringUtilities.TrimAnsi = TrimAnsi
+
 return table.freeze(StringUtilities)

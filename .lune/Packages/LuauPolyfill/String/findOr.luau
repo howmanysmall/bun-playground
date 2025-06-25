@@ -17,7 +17,7 @@ local function findOr(value: string, patternTable: {string}, initialIndex: numbe
 	local length = 0
 
 	for _, pattern in patternTable do
-		pattern = string.gsub(pattern, luauPatternCharacters, "%%%1")
+		pattern = (string.gsub(pattern, luauPatternCharacters, "%%%1"))
 		local startIndex, finishIndex = string.find(value, pattern, initial)
 		if startIndex then
 			local prefix = string.sub(value, 1, startIndex - 1)

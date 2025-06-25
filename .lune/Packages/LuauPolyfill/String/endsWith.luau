@@ -18,7 +18,7 @@ local function endsWith(value: string, substring: string, optionalLength: number
 	end
 
 	local position = length - substringLength + 1
-	return string.find(value, substring, position, true) == position
+	return (string.find(value, substring, position, true)) == position
 end
 
 return endsWith

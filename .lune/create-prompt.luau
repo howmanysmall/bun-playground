@@ -5,19 +5,46 @@
 	args = ""
 ]=]
 
+local Chalk = require("@packages/Chalk")
 local Execute = require("@utilities/Execute")
 local GetArguments = require("@utilities/GetArguments")
+local GitUtilities = require("@utilities/GitUtilities")
 local LuauPolyfill = require("@packages/LuauPolyfill")
 local PathFileSystem = require("@packages/PathFileSystem")
 local RegEx = require("@lune/regex")
+local process = require("@lune/process")
 
 local Array = LuauPolyfill.Array
+local console = LuauPolyfill.console
 
 local CWD = PathFileSystem.CWD
+local YELLOW_BOLD = Chalk.Yellow .. Chalk.Bold
 local SOURCE = CWD:join("src")
 
 local IGNORE_COMBINED_COMMENT_NO_START = RegEx.new("(\\/\\/\\s*biome-ignore|\\/\\*\\*\\s*biome-ignore-all)")
 local IsMatch = IGNORE_COMBINED_COMMENT_NO_START.isMatch
+
+if not PathFileSystem.IsDirectory(SOURCE) then
+	print()
+	console.warn(
+		`Source directory not found at {SOURCE:toString()}. Please run this script from the root of the project.`
+	)
+	process.exit(1)
+end
+
+-- make sure source does not have any uncommitted changes
+local gitChanges = GitUtilities.GetGitChanges(SOURCE)
+if gitChanges.HasChanges then
+	print()
+	console.error(
+		`Uncommitted changes found in {SOURCE:toString()}. Please stage your changes before running this script.\n\n{YELLOW_BOLD(
+			table.concat(Array.map(string.split(gitChanges.Stdout, "\n"), function(line: string): string
+				return `- {(string.gsub(line, "^M%s", ""))}`
+			end), "\n")
+		)}`
+	)
+	process.exit(1)
+end
 
 local function UndoableRename(originalPath: PathFileSystem.Path, newPath: PathFileSystem.Path): () -> ()
 	PathFileSystem.Copy(originalPath, newPath, true)
@@ -28,26 +55,6 @@ local function UndoableRename(originalPath: PathFileSystem.Path, newPath: PathFi
 		PathFileSystem.RemoveDirectory(newPath)
 	end
 end
-
--- local Captures = IGNORE_ALL_COMMENT.captures
--- local GetCapture = (Captures(RegEx.new("."), "1") :: RegEx.RegexCaptures).get
-
--- local function UnpackCaptures(captures: RegEx.RegexCaptures?): string?
--- 	if not captures or #captures == 0 then
--- 		return nil
--- 	end
-
--- 	local first = GetCapture(captures, 1)
--- 	return if first then first.text else nil
--- end
-
--- print(
--- 	UnpackCaptures(Captures(IGNORE_ALL_COMMENT, "/** biome-ignore-all lint/suspicious/noConstEnum: <explanation> */"))
--- )
--- -- print(IGNORE_ALL_COMMENT:captures("// biome-ignore lint/suspicious/noConstEnum: not built"))
--- -- print(IGNORE_NEXT_COMMENT:captures("/** biome-ignore-all lint/suspicious/noConstEnum: <explanation> */"))
--- print(UnpackCaptures(Captures(IGNORE_NEXT_COMMENT, "// biome-ignore lint/suspicious/noConstEnum: not built")))
--- process.exit()
 
 local IGNORE_GLOBS = {
 	"**/__tests__";

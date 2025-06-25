@@ -42,7 +42,7 @@ local function split(str: string, _pattern: Pattern?, _limit: number?): Array<st
 		local match = findOr(str, patternList, init)
 		if match ~= nil then
 			table.insert(result, slice(str, init, match.index))
-			local matchLength = utf8.len(match.match)
+			local matchLength = (utf8.len(match.match))
 			-- Luau FIXME? Luau doesn't understand that str has already been shown to be valid utf8 on line 26 and therefore won't be nil
 			init = match.index + matchLength :: number
 		else

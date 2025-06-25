@@ -23,7 +23,7 @@ return function(value: string, searchElement: string, fromIndex: number?): numbe
 		return -1
 	end
 
-	searchElement = string.gsub(searchElement, luauPatternCharacters, "%%%1")
+	searchElement = (string.gsub(searchElement, luauPatternCharacters, "%%%1"))
 	local searchElementLength = #searchElement
 
 	for index = trueFromIndex, length do

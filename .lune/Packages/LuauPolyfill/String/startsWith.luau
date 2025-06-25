@@ -17,7 +17,7 @@ local function startsWith(value: string, substring: string, position: number?): 
 		return false
 	end
 
-	return string.find(value, substring, position_, true) == position_
+	return (string.find(value, substring, position_, true)) == position_
 end
 
 return startsWith
