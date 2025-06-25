@@ -10,15 +10,12 @@ local GetArguments = require("@utilities/GetArguments")
 local LuauPolyfill = require("@packages/LuauPolyfill")
 local PathFileSystem = require("@packages/PathFileSystem")
 local RegEx = require("@lune/regex")
-local process = require("@lune/process")
 
 local Array = LuauPolyfill.Array
 
 local CWD = PathFileSystem.CWD
 local SOURCE = CWD:join("src")
 
--- local IGNORE_ALL_COMMENT = RegEx.new("^(\\/\\*\\*\\s*biome-ignore-all)")
--- local IGNORE_NEXT_COMMENT = RegEx.new("^(\\/\\/\\s*biome-ignore)")
 local IGNORE_COMBINED_COMMENT_NO_START = RegEx.new("(\\/\\/\\s*biome-ignore|\\/\\*\\*\\s*biome-ignore-all)")
 local IsMatch = IGNORE_COMBINED_COMMENT_NO_START.isMatch
 
@@ -52,10 +49,6 @@ end
 -- print(UnpackCaptures(Captures(IGNORE_NEXT_COMMENT, "// biome-ignore lint/suspicious/noConstEnum: not built")))
 -- process.exit()
 
-local function MatchBiomeComment(line: string): boolean
-	return IsMatch(IGNORE_ALL_COMMENT, line) or IsMatch(IGNORE_NEXT_COMMENT, line)
-end
-
 local IGNORE_GLOBS = {
 	"**/__tests__";
 	"*.test.ts";
@@ -78,7 +71,7 @@ for _, descendant in PathFileSystem.GetDescendants(SOURCE) do
 	local size = 0
 
 	for _, line in splitContents do
-		if (string.find(line, "^(//%s*biome%-ignore)")) or (string.find(line, "^(/%*%*%s*biome%-ignore%-all)")) then
+		if (string.find(line, "// biome-ignore", 1, true)) or (string.find(line, "/** biome-ignore-all", 1, true)) then
 			continue
 		end
 
