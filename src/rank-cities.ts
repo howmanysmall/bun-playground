@@ -33,7 +33,7 @@ interface AffordabilityRank {
 	readonly affordableMonthlyRent: number;
 	readonly medianMonthlyIncome: number;
 	readonly name: string;
-	rank: number;
+	readonly rank: number;
 	/**
 	 * The percentage of the 30% median monthly income that goes to median monthly rent.
 	 * A value of 100 means rent consumes exactly 30% of median income.
@@ -48,29 +48,45 @@ const enum OutputType {
 	CliTable3 = "cli-table3",
 }
 
-const limit = await number({
-	default: 100,
-	message: "How many cities to fetch?",
-	min: 1,
-	required: true,
-	step: 1,
-});
-const affordableHousingPercentageInteger = await number({
-	default: 30,
-	max: 100,
-	message: 'What is the threshold of income considered "affordable" for housing? [0-100]',
-	min: 0,
-	required: true,
-});
-const outputType = await select<OutputType>({
-	choices: [OutputType.ConsoleTable, OutputType.CliTable3],
-	default: OutputType.ConsoleTable,
-	message: "How would you like to display the results?",
-});
+interface PromptResults {
+	readonly affordableHousingPercentageInteger: number;
+	readonly limit: number;
+	readonly outputType: OutputType;
+}
+
+async function promptUserForOptionsAsync(): Promise<PromptResults> {
+	const limit = await number({
+		default: 100,
+		message: "How many cities to fetch?",
+		min: 1,
+		required: true,
+		step: 1,
+	});
+	const affordableHousingPercentageInteger = await number({
+		default: 30,
+		max: 100,
+		message: 'What is the threshold of income considered "affordable" for housing? [0-100]',
+		min: 0,
+		required: true,
+	});
+	const outputType = await select<OutputType>({
+		choices: [OutputType.ConsoleTable, OutputType.CliTable3],
+		default: OutputType.ConsoleTable,
+		message: "How would you like to display the results?",
+	});
+
+	return {
+		affordableHousingPercentageInteger,
+		limit,
+		outputType,
+	};
+}
+
+const { affordableHousingPercentageInteger, limit, outputType } = await promptUserForOptionsAsync();
 
 const affordableHousingPercentage = affordableHousingPercentageInteger / 100;
 
-const CENSUS_API_YEAR = 2022;
+const CENSUS_API_YEAR = 2023;
 const CENSUS_DATA_SOURCE = "acs/acs5";
 
 const VARIABLES = {
@@ -130,10 +146,10 @@ async function fetchMsaDataAsync(url: URL): Promise<Array<MsaData>> {
 }
 
 function calculateAffordability(metroStatisticalAreas: Array<MsaData>): Array<AffordabilityRank> {
-	return metroStatisticalAreas.map(({ medianIncome, medianRent, name }) => {
+	return metroStatisticalAreas.map(({ medianIncome, medianRent, name }): AffordabilityRank => {
 		const medianMonthlyIncome = medianIncome / 12;
 		const affordableMonthlyRent = medianMonthlyIncome * affordableHousingPercentage;
-		const rentToIncomeRatio = (medianRent / medianMonthlyIncome) * 100;
+		const rentToIncomeRatio = (medianRent / affordableMonthlyRent) * 100;
 
 		return {
 			actualMedianRent: medianRent,
@@ -258,7 +274,7 @@ const FileTypeMeta: Record<FileType, (rankedCities: RankedCities) => Promise<str
 
 async function writeResultsAsync(rankedCities: RankedCities): Promise<void> {
 	const shouldWrite = await confirm({
-		default: true,
+		default: false,
 		message: "Write results to file system?",
 	});
 	if (!shouldWrite) return;
@@ -276,7 +292,7 @@ async function writeResultsAsync(rankedCities: RankedCities): Promise<void> {
 		return;
 	}
 
-	const file = Bun.file(`./ranked-cities.${fileType}`);
+	const file = Bun.file(`./data/ranked-cities.${fileType}`);
 	const fileContents = await callback(rankedCities);
 	await file.write(fileContents);
 }
