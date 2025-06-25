@@ -60,6 +60,7 @@ local IGNORE_GLOBS = {
 	"**/__tests__";
 	"*.test.ts";
 	"*.spec.ts";
+	"rank-cities-plus.ts";
 }
 local undo = UndoableRename(SOURCE, CWD:join("src-temp"))
 

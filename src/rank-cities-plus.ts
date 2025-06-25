@@ -132,8 +132,26 @@ async function getMsaDataAsync(year = CENSUS_YEAR): Promise<MsaDataArray> {
 async function fetchMsaDataAsync(year = CENSUS_YEAR): Promise<ReadonlyArray<MsaData>> {
 	const data = await getMsaDataAsync(year);
 
-	return data.map((row): MsaData | undefined => {
-		const [name, populationString, incomeString, rentString] = row;
-		if (!name?.includes("Metro Area")) return;
-	});
+	return data
+		.map((row): MsaData | undefined => {
+			const [name, populationString, incomeString, rentString] = row;
+			if (!name?.includes("Metro Area") || !populationString || !incomeString || !rentString) return undefined;
+
+			const population = +populationString;
+			if (population <= 0) return undefined;
+
+			const medianIncome = +incomeString;
+			if (medianIncome <= 0) return undefined;
+
+			const medianRent = +rentString;
+			if (medianRent <= 0) return undefined;
+
+			return {
+				name: name.replace(" Metro Area", "").trim(),
+				medianIncome,
+				medianRent,
+				population,
+			};
+		})
+		.filter((value): value is MsaData => value !== undefined);
 }
