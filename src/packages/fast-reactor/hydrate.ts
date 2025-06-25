@@ -48,9 +48,10 @@ export function hydrate<T extends object>(object: T, bindings: BindingTable<T>):
 			const binding = bindings[key];
 			if (binding && isReactive(binding)) {
 				object[key as keyof T] = binding.peek() as T[keyof T];
-				cleanups[length++] = binding.onChange((newValue): void => {
+				cleanups[length] = binding.onChange((newValue): void => {
 					object[key as keyof T] = newValue as T[keyof T];
 				});
+				length += 1;
 			} else object[key as keyof T] = binding as T[keyof T];
 		}
 	}

@@ -60,7 +60,6 @@ describe("FastReactor.Computed", () => {
 		const stateA = new State(1);
 		const stateB = new State(10);
 
-		// eslint-disable-next-line test/no-conditional-in-test -- useless?
 		const computed = new Computed(() => (toggleState.get() ? stateA.get() : stateB.get()));
 
 		expect(computed.peek()).toBe(1);

@@ -36,9 +36,6 @@ export interface Notifiable {
  * @template T The type of the value stored in the reactive.
  */
 export interface Reactive<T> extends Notifiable, Observable {
-	/** The current value. Alias for {@linkcode peek} */
-	value: T;
-
 	/** Gets the current value. */
 	get(): T;
 
@@ -62,6 +59,9 @@ export interface Reactive<T> extends Notifiable, Observable {
 	 * @param newValue - The new value to set.
 	 */
 	set(newValue: T): void;
+
+	/** The current value. Alias for {@linkcode peek}. */
+	value: T;
 }
 
 /**

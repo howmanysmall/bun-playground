@@ -88,9 +88,9 @@ describe("FastReactor.hydrate", () => {
 
 		// Act
 		hydrate(object, {
+			name: nameState,
 			age: ageState,
 			isAdult: isAdultComputed,
-			name: nameState,
 			type: "person",
 		});
 
@@ -118,8 +118,8 @@ describe("FastReactor.hydrate", () => {
 
 		// Act
 		const cleanup = hydrate(object, {
-			age: ageState,
 			name: nameState,
+			age: ageState,
 		});
 
 		// Verify initial values
@@ -149,7 +149,7 @@ describe("FastReactor.hydrate", () => {
 		});
 
 		// Assert
-		// eslint-disable-next-line test/prefer-strict-equal -- not helpful
+
 		expect(typeof result).toEqual("function");
 	});
 });

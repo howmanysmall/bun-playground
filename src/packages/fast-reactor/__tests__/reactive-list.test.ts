@@ -82,25 +82,13 @@ describe("FastReactor.ReactiveList", () => {
 		expect(list.peek()).toEqual([1, 2, 3]);
 	});
 
-	describe("clear()", () => {
-		it("should remove all items (#1)", () => {
-			const list = new ReactiveList([1, 2, 3]);
-			list.clear();
-			expect(list.peek()).toEqual([]);
-		});
-		it("should remove all items (#2)", () => {
-			const list = new ReactiveList([1, 2, 3]);
-			list.clear();
-			expect(list.size()).toBe(0);
-		});
-	});
-	// it("clear() should remove all items", () => {
-	// 	const list = new ReactiveList([1, 2, 3]);
-	// 	list.clear();
+	it("clear() should remove all items", () => {
+		const list = new ReactiveList([1, 2, 3]);
+		list.clear();
 
-	// 	expect(list.peek()).toEqual([]);
-	// 	expect(list.size()).toBe(0);
-	// });
+		expect(list.peek()).toEqual([]);
+		expect(list.size()).toBe(0);
+	});
 
 	it("replace() should replace all items", () => {
 		const list = new ReactiveList([1, 2, 3]);

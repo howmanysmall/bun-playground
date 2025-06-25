@@ -15,18 +15,21 @@ import { fromError } from "zod-validation-error/v4";
  * ## Differences between this and `rank-cities.ts`
  *
  * ### New Feature
+ *
  * - Configurable income-to-rent threshold (still supported)
- * - Additional economic lenses (home price, cost-of-living, wage growth, unemployment)
+ * - Additional economic lenses (home price, cost-of-living, wage growth,
+ *   unemployment)
  * - Benchmarking vs national average
  * - Optional five-year trend
  * - State / region filters
- * - User-defined metric weights & composite score
+ * - User-defined metric weights & composite score.
  *
  * External data sources:
+ *
  * - US Census (ACS) — median income / rent
  * - FRED — median home price (MSPUS) & wage growth (FRBATLWGT12MMUMHWGMSA)
  * - BEA — Regional Price Parities (cost-of-living proxy)
- * - BLS — Local Area Unemployment Statistics (unemployment & job growth)
+ * - BLS — Local Area Unemployment Statistics (unemployment & job growth).
  */
 export const cli = {};
 
@@ -37,34 +40,34 @@ const BEA_API_KEY = requireEnvironment("BEA_API_KEY", true);
 
 const isMsaData = zod
 	.object({
+		name: zod.string(),
 		medianIncome: zod.number(),
 		medianRent: zod.number(),
-		name: zod.string(),
 		population: zod.int(),
 	})
 	.readonly();
 type MsaData = zod.infer<typeof isMsaData>;
 
 export interface EnrichedMsaData extends MsaData {
-	readonly benchmarkDelta?: number; // city ratio – national average
-	readonly compositeScore?: number; // 0..100 (higher == less affordable)
+	readonly benchmarkDelta?: number;
+	readonly compositeScore?: number;
 	readonly costOfLivingIndex?: number;
-	readonly fiveYearTrend?: number; // rent-burden Δ over 5 yrs
+	readonly fiveYearTrend?: number;
 	readonly medianHomePrice?: number;
 	readonly unemploymentPercent?: number;
 	readonly wageGrowthPercent?: number;
 }
 
 interface RankingWeights {
-	readonly costOfLiving: number; // 0.15
-	readonly homeAfford: number; // 0.25
-	readonly jobMarket: number; // 0.1
-	readonly rentBurden: number; // default 0.4
-	readonly wageGrowth: number; // 0.1
+	readonly costOfLiving: number;
+	readonly homeAfford: number;
+	readonly jobMarket: number;
+	readonly rentBurden: number;
+	readonly wageGrowth: number;
 }
 interface PromptResults {
 	readonly filterMode: LocationFilterMode;
-	readonly filterValue?: string; // e.g. "CA" or "West"
+	readonly filterValue?: string;
 	readonly limit: number;
 	readonly outputType: OutputType;
 	readonly thresholdPercent: number;
@@ -109,8 +112,9 @@ function getCensusMsaUrl(year: number): URL {
 }
 
 const isMsaDataArray = zod.array(zod.array(zod.string().nullable()));
+type MsaDataArray = zod.infer<typeof isMsaDataArray>;
 
-async function fetchMsaDataAsync(year = CENSUS_YEAR): Promise<ReadonlyArray<MsaData>> {
+async function getMsaDataAsync(year = CENSUS_YEAR): Promise<MsaDataArray> {
 	const response = await Bun.fetch(getCensusMsaUrl(year));
 	if (!response.ok) {
 		const error = new Error(`Failed to fetch ${year} MSA data - ${response.status} ${response.statusText}`);
@@ -122,8 +126,13 @@ async function fetchMsaDataAsync(year = CENSUS_YEAR): Promise<ReadonlyArray<MsaD
 	const json = await response.json();
 	const result = await isMsaDataArray.safeParseAsync(json);
 	if (!result.success) throw fromError(result.error);
+	return result.data.slice(1);
+}
 
-	return result.data.slice(1).map((row): MsaData | undefined => {
+async function fetchMsaDataAsync(year = CENSUS_YEAR): Promise<ReadonlyArray<MsaData>> {
+	const data = await getMsaDataAsync(year);
+
+	return data.map((row): MsaData | undefined => {
 		const [name, populationString, incomeString, rentString] = row;
 		if (!name?.includes("Metro Area")) return;
 	});
