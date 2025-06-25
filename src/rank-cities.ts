@@ -5,6 +5,7 @@ import chalk from "chalk";
 import CliTable3 from "cli-table3";
 import { stringifyINI, stringifyJSON, stringifyJSON5, stringifyJSONC, stringifyTOML, stringifyYAML } from "confbox";
 import FileType from "meta/file-type";
+import OutputType from "meta/output-type";
 import { State } from "packages/fast-reactor";
 import { z as zod } from "zod/v4";
 import { fromError } from "zod-validation-error/v4";
@@ -19,50 +20,39 @@ function validateApiKey(apiKey: string | undefined): string {
 
 const CENSUS_API_KEY = validateApiKey(Bun.env.CENSUS_API_KEY);
 
-const isMsaData = zod
-	.object({
-		medianHomeValue: zod.number(),
-		medianIncome: zod.number(),
-		medianRent: zod.number(),
-		name: zod.string(),
-		population: zod.int(),
-	})
-	.readonly();
-type MsaData = zod.infer<typeof isMsaData>;
+interface MsaData {
+	readonly medianHomeValue: number;
+	readonly medianIncome: number;
+	readonly medianRent: number;
+	readonly name: string;
+	readonly population: number;
+}
 
 interface AffordabilityRank {
-	readonly medianHomeValue: number;
 	readonly actualMedianRent: number;
 	readonly affordableMonthlyRent: number;
-	/** Median home value relative to annual income (%) */
+	/** Median home value relative to annual income (%). */
 	readonly homeValueToIncomeRatio: number;
+	readonly medianHomeValue: number;
 	readonly medianMonthlyIncome: number;
 	readonly name: string;
 	rank: number;
-	/** Percentage of income spent on rent */
+	/** Percentage of income spent on rent. */
 	readonly rentToIncomeRatio: number;
 }
 
-// biome-ignore lint/suspicious/noConstEnum: not built
-const enum OutputType {
-	ConsoleTable = "console.table",
-	CliTable3 = "cli-table3",
-}
-
 interface PromptResults {
-	readonly affordableHousingPercentageInteger: number;
+	readonly affordablePercentage: number;
 	readonly limit: number;
 	readonly outputType: OutputType;
 }
 
 const promptResultState = new State<PromptResults>({
-	affordableHousingPercentageInteger: 30,
+	affordablePercentage: 30,
 	limit: 100,
 	outputType: OutputType.CliTable3,
 });
-const affordableHousingPercentageState = promptResultState.map((state): number =>
-	Math.max((state.affordableHousingPercentageInteger ?? 0) / 100, 1),
-);
+const percentageState = promptResultState.map((state): number => Math.max(state.affordablePercentage / 100, 1));
 
 async function promptUserForOptionsAsync(): Promise<void> {
 	const limit = await number({
@@ -72,7 +62,7 @@ async function promptUserForOptionsAsync(): Promise<void> {
 		required: true,
 		step: 1,
 	});
-	const affordableHousingPercentageInteger = await number({
+	const affordablePercentage = await number({
 		default: 30,
 		max: 100,
 		message: 'What is the threshold of income considered "affordable" for housing? [0-100]',
@@ -86,7 +76,7 @@ async function promptUserForOptionsAsync(): Promise<void> {
 	});
 
 	promptResultState.set({
-		affordableHousingPercentageInteger,
+		affordablePercentage,
 		limit,
 		outputType,
 	});
@@ -121,8 +111,9 @@ function buildCensusApiUrl(): URL {
 }
 
 const isMsaDataArray = zod.array(zod.array(zod.nullable(zod.string())));
+type MsaDataArray = zod.infer<typeof isMsaDataArray>;
 
-async function fetchMsaDataAsync(url: URL): Promise<Array<MsaData>> {
+async function fetchMsaJsonAsync(url: URL): Promise<MsaDataArray> {
 	const response = await Bun.fetch(url);
 	if (!response.ok) {
 		const text = await response.text();
@@ -134,8 +125,11 @@ async function fetchMsaDataAsync(url: URL): Promise<Array<MsaData>> {
 	const raw = await response.json();
 	const result = await isMsaDataArray.safeParseAsync(raw);
 	if (!result.success) throw fromError(result.error);
+	return result.data;
+}
 
-	const rawData = result.data;
+async function fetchMsaDataAsync(url: URL): Promise<Array<MsaData>> {
+	const rawData = await fetchMsaJsonAsync(url);
 	const [, ...dataRows] = rawData;
 
 	return dataRows
@@ -151,10 +145,10 @@ async function fetchMsaDataAsync(url: URL): Promise<Array<MsaData>> {
 			if (population <= 0 || medianIncome <= 0 || medianRent <= 0 || medianHomeValue <= 0) return undefined;
 
 			return {
+				name: name.replace(" Metro Area", "").trim(),
 				medianHomeValue,
 				medianIncome,
 				medianRent,
-				name: name.replace(" Metro Area", "").trim(),
 				population,
 			};
 		})
@@ -162,9 +156,9 @@ async function fetchMsaDataAsync(url: URL): Promise<Array<MsaData>> {
 }
 
 function calculateAffordability(metroStatisticalAreas: Array<MsaData>): Array<AffordabilityRank> {
-	const affordableHousingPercentage = affordableHousingPercentageState.get();
+	const affordableHousingPercentage = percentageState.get();
 
-	return metroStatisticalAreas.map(({ medianHomeValue, medianIncome, medianRent, name }): AffordabilityRank => {
+	return metroStatisticalAreas.map(({ name, medianHomeValue, medianIncome, medianRent }): AffordabilityRank => {
 		const medianMonthlyIncome = medianIncome / 12;
 		const affordableMonthlyRent = medianMonthlyIncome * affordableHousingPercentage;
 
@@ -172,12 +166,12 @@ function calculateAffordability(metroStatisticalAreas: Array<MsaData>): Array<Af
 		const homeValueToIncomeRatio = (medianHomeValue / medianIncome) * 100;
 
 		return {
+			name,
 			actualMedianRent: medianRent,
 			affordableMonthlyRent,
 			homeValueToIncomeRatio,
 			medianHomeValue,
 			medianMonthlyIncome,
-			name,
 			rank: 0,
 			rentToIncomeRatio,
 		};
@@ -208,83 +202,79 @@ const keys: ReadonlyArray<DataSetKey> = [
 	DataSetKey.HomeValueToIncome,
 ];
 
-function displayResults(rankedCities: RankedCities): void {
-	const { affordableHousingPercentageInteger, outputType } = promptResultState.get();
+const { bold } = chalk;
+function getCliTable3(rankedCities: RankedCities, affordablePercentage: number): string {
+	const cliTable = new CliTable3({
+		head: [
+			bold(DataSetKey.Rank),
+			bold(DataSetKey.CityMarket),
+			bold(DataSetKey.RentBurden),
+			bold(`${DataSetKey.AffordableRent} (${affordablePercentage}%)`),
+			bold(DataSetKey.ActualMedianRent),
+			bold(DataSetKey.MedianHomeValue),
+			bold(DataSetKey.HomeValueToIncome),
+		],
+	});
 
+	for (const [
+		index,
+		{ name, actualMedianRent, affordableMonthlyRent, homeValueToIncomeRatio, medianHomeValue, rentToIncomeRatio },
+	] of rankedCities.entries()) {
+		cliTable.push([
+			index + 1,
+			name,
+			`${rentToIncomeRatio.toFixed(1)}%`,
+			`$${affordableMonthlyRent.toFixed(0)}`,
+			`$${actualMedianRent.toFixed(0)}`,
+			`$${medianHomeValue.toFixed(0)}`,
+			`${homeValueToIncomeRatio.toFixed(1)}%`,
+		]);
+	}
+
+	return cliTable.toString();
+}
+function getConsoleTable(rankedCities: RankedCities): ReadonlyArray<Record<DataSetKey, string>> {
+	return rankedCities.map(
+		(
+			{
+				name,
+				actualMedianRent,
+				affordableMonthlyRent,
+				homeValueToIncomeRatio,
+				medianHomeValue,
+				rentToIncomeRatio,
+			},
+			index,
+		): RankedCity => ({
+			[DataSetKey.ActualMedianRent]: `$${actualMedianRent.toFixed(0)}`,
+			[DataSetKey.AffordableRent]: `$${affordableMonthlyRent.toFixed(0)}`,
+			[DataSetKey.CityMarket]: name,
+			[DataSetKey.HomeValueToIncome]: `${homeValueToIncomeRatio.toFixed(1)}%`,
+			[DataSetKey.MedianHomeValue]: `$${medianHomeValue.toFixed(0)}`,
+			[DataSetKey.Rank]: `${index + 1}`,
+			[DataSetKey.RentBurden]: `${rentToIncomeRatio.toFixed(1)}%`,
+		}),
+	);
+}
+
+function displayResults(rankedCities: RankedCities): void {
+	const { affordablePercentage, outputType } = promptResultState.get();
 	console.log(
-		`\n--- Top ${rankedCities.length} US Cities by Rent & Home Affordability (Threshold: ${affordableHousingPercentageInteger}%) ---\n`,
+		`\n--- Top ${rankedCities.length} US Cities by Rent & Home Affordability (Threshold: ${affordablePercentage}%) ---\n`,
 	);
 
 	switch (outputType) {
-		case OutputType.ConsoleTable:
-			console.table(
-				rankedCities.map(
-					(
-						{
-							medianHomeValue,
-							actualMedianRent,
-							affordableMonthlyRent,
-							homeValueToIncomeRatio,
-							name,
-							rentToIncomeRatio,
-						},
-						index,
-					): RankedCity => ({
-						[DataSetKey.ActualMedianRent]: `$${actualMedianRent.toFixed(0)}`,
-						[DataSetKey.AffordableRent]: `$${affordableMonthlyRent.toFixed(0)}`,
-						[DataSetKey.CityMarket]: name,
-						[DataSetKey.HomeValueToIncome]: `${homeValueToIncomeRatio.toFixed(1)}%`,
-						[DataSetKey.MedianHomeValue]: `$${medianHomeValue.toFixed(0)}`,
-						[DataSetKey.Rank]: `${index + 1}`,
-						[DataSetKey.RentBurden]: `${rentToIncomeRatio.toFixed(1)}%`,
-					}),
-				),
-				keys,
-			);
-			break;
-
 		case OutputType.CliTable3: {
-			const bold = chalk.bold;
-			const cliTable = new CliTable3({
-				head: [
-					bold(DataSetKey.Rank),
-					bold(DataSetKey.CityMarket),
-					bold(DataSetKey.RentBurden),
-					bold(`${DataSetKey.AffordableRent} (${affordableHousingPercentageInteger}%)`),
-					bold(DataSetKey.ActualMedianRent),
-					bold(DataSetKey.MedianHomeValue),
-					bold(DataSetKey.HomeValueToIncome),
-				],
-			});
-
-			for (const [
-				index,
-				{
-					actualMedianRent,
-					affordableMonthlyRent,
-					homeValueToIncomeRatio,
-					medianHomeValue,
-					name,
-					rentToIncomeRatio,
-				},
-			] of rankedCities.entries()) {
-				cliTable.push([
-					index + 1,
-					name,
-					`${rentToIncomeRatio.toFixed(1)}%`,
-					`$${affordableMonthlyRent.toFixed(0)}`,
-					`$${actualMedianRent.toFixed(0)}`,
-					`$${medianHomeValue.toFixed(0)}`,
-					`${homeValueToIncomeRatio.toFixed(1)}%`,
-				]);
-			}
-
-			console.log(cliTable.toString());
+			console.log(getCliTable3(rankedCities, affordablePercentage));
 			break;
 		}
-
-		default:
+		case OutputType.ConsoleTable: {
+			console.table(getConsoleTable(rankedCities), keys);
+			break;
+		}
+		default: {
 			throw new Error(`Unsupported output type: ${outputType}`);
+		}
 	}
 }
 
@@ -323,8 +313,7 @@ async function writeResultsAsync(rankedCities: RankedCities): Promise<void> {
 	});
 
 	const callback = FileTypeMeta[fileType];
-	if (callback) await Bun.file(`./data/ranked-cities.${fileType}`).write(callback(rankedCities));
-	else console.error(`Unsupported file type: ${fileType}`);
+	await Bun.file(`./data/ranked-cities.${fileType}`).write(callback(rankedCities));
 }
 
 async function rankCitiesByAffordabilityAsync(): Promise<void> {
@@ -338,8 +327,8 @@ async function rankCitiesByAffordabilityAsync(): Promise<void> {
 		for (const [index, city] of ranked.entries()) city.rank = index + 1;
 		displayResults(ranked);
 		await writeResultsAsync(ranked);
-	} catch (error) {
-		console.error("An unexpected error occurred:", error);
+	} catch (err) {
+		console.error("An unexpected error occurred:", err);
 		process.exit(1);
 	}
 }

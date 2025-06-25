@@ -1,4 +1,4 @@
-import { barplot, bench, run, type k_statefull } from "mitata";
+import { barplot, bench, type k_statefull, run } from "mitata";
 
 function fibonacci(n: number): number {
 	if (n <= 1) return n;
@@ -20,10 +20,11 @@ function fibonacciIterative(n: number): number {
 	let a = 0;
 	let b = 1;
 	for (let index = 2; index <= n; index += 1) {
-		const temp = b;
+		const temporary = b;
 		b += a;
-		a = temp;
+		a = temporary;
 	}
+
 	return b;
 }
 

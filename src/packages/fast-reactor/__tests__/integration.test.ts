@@ -1,6 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import { Computed, Observer, ReactiveList, State } from "..";
 
+const ALMOST_VICTORY = "Almost Victory";
+const HELL_JANE = "Hello, Jane!";
+const HELLO_JANE_DOE = "Hello, Jane Doe!";
+const HELLO_JANE_SMITH = "Hello, Jane Smith!";
+
 describe("Integration tests", () => {
 	it("complex dependency chain should update correctly", () => {
 		const firstName = new State("John");
@@ -17,23 +22,23 @@ describe("Integration tests", () => {
 		updates.length = 0;
 		firstName.set("Jane");
 
-		expect(updates).toEqual(["Hello, Jane Doe!"]);
+		expect(updates).toEqual([HELLO_JANE_DOE]);
 
 		lastName.set("Smith");
 
-		expect(updates).toEqual(["Hello, Jane Doe!", "Hello, Jane Smith!"]);
+		expect(updates).toEqual([HELLO_JANE_DOE, HELLO_JANE_SMITH]);
 
 		showFullName.set(false);
 
-		expect(updates).toEqual(["Hello, Jane Doe!", "Hello, Jane Smith!", "Hello, Jane!"]);
+		expect(updates).toEqual([HELLO_JANE_DOE, HELLO_JANE_SMITH, HELL_JANE]);
 
 		lastName.set("Johnson");
 
-		expect(updates).toEqual(["Hello, Jane Doe!", "Hello, Jane Smith!", "Hello, Jane!"]);
+		expect(updates).toEqual([HELLO_JANE_DOE, HELLO_JANE_SMITH, HELL_JANE]);
 
 		showFullName.set(true);
 
-		expect(updates).toEqual(["Hello, Jane Doe!", "Hello, Jane Smith!", "Hello, Jane!", "Hello, Jane Johnson!"]);
+		expect(updates).toEqual([HELLO_JANE_DOE, HELLO_JANE_SMITH, HELL_JANE, "Hello, Jane Johnson!"]);
 	});
 
 	it("should handle circular dependencies gracefully", () => {
@@ -51,9 +56,9 @@ describe("Integration tests", () => {
 	describe("reactiveList Integration", () => {
 		it("should track complex dependency chains", () => {
 			const entities = new ReactiveList<{ health: number; id: number; type: string }>([
-				{ health: 100, id: 1, type: "player" },
-				{ health: 50, id: 2, type: "enemy" },
-				{ health: 75, id: 3, type: "enemy" },
+				{ id: 1, health: 100, type: "player" },
+				{ id: 2, health: 50, type: "enemy" },
+				{ id: 3, health: 75, type: "enemy" },
 			]);
 
 			const enemies = new Computed(() => entities.get().filter((e) => e.type === "enemy"));
@@ -69,7 +74,7 @@ describe("Integration tests", () => {
 			const gameStatus = new Computed(() => {
 				const enemyList = enemies.get();
 				if (enemyList.length === 0) return "Victory";
-				if (averageEnemyHealth.get() < 30) return "Almost Victory";
+				if (averageEnemyHealth.get() < 30) return ALMOST_VICTORY;
 				return "In Progress";
 			});
 
@@ -83,16 +88,16 @@ describe("Integration tests", () => {
 			});
 			updates.length = 0;
 
-			entities.update(1, { health: 20, id: 2, type: "enemy" });
-			entities.update(2, { health: 25, id: 3, type: "enemy" });
+			entities.update(1, { id: 2, health: 20, type: "enemy" });
+			entities.update(2, { id: 3, health: 25, type: "enemy" });
 
 			expect(averageEnemyHealth.peek()).toBe(22.5);
-			expect(updates).toEqual(["Almost Victory"]);
+			expect(updates).toEqual([ALMOST_VICTORY]);
 
-			entities.replace([{ health: 100, id: 1, type: "player" }]);
+			entities.replace([{ id: 1, health: 100, type: "player" }]);
 
 			expect(averageEnemyHealth.peek()).toBe(0);
-			expect(updates).toEqual(["Almost Victory", "Victory"]);
+			expect(updates).toEqual([ALMOST_VICTORY, "Victory"]);
 		});
 
 		it("should handle operations on item objects correctly", () => {
@@ -114,8 +119,8 @@ describe("Integration tests", () => {
 				entities.get().map((entity) => {
 					const { x, y } = entity.position;
 					return {
-						distance: Math.sqrt(x ** 2 + y ** 2),
 						id: entity.id,
+						distance: Math.sqrt(x ** 2 + y ** 2),
 					};
 				}),
 			);

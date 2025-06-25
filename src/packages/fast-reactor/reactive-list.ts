@@ -43,17 +43,30 @@ function onItemsChanged<T>(
  * @template T The type of items in the list.
  */
 export class ReactiveList<T extends NonNullable<unknown>> implements Reactive<Array<T>> {
+	public get length(): number {
+		trackDependency(this);
+		return this.items.length;
+	}
+
+	public get value(): Array<T> {
+		return this.peek();
+	}
+
+	public set value(items: AnyArray<T>) {
+		this.set(items);
+	}
+
 	/**
 	 * Adds an item to the end of the list.
 	 *
 	 * @param value - The item to add to the list.
 	 */
 	public add(value: T): void {
-		const { items } = this;
+		const { addListeners, dependents, items, listeners } = this;
 		const index = items.length;
 		items[index] = value;
-		safeNotifyItemAdded(this.addListeners, value, index);
-		onItemsChanged(this.dependents, this.listeners, items);
+		safeNotifyItemAdded(addListeners, value, index);
+		onItemsChanged(dependents, listeners, items);
 	}
 
 	public addDependent(dependent: Dependent): void {
@@ -69,7 +82,7 @@ export class ReactiveList<T extends NonNullable<unknown>> implements Reactive<Ar
 		const { items } = this;
 		if (items.length <= 0) return;
 
-		const { removeListeners } = this;
+		const { dependents, listeners, removeListeners } = this;
 		if (removeListeners.size > 0) {
 			const clone = [...items];
 			for (let index = clone.length; index > 0; index -= 1) {
@@ -80,7 +93,7 @@ export class ReactiveList<T extends NonNullable<unknown>> implements Reactive<Ar
 
 		const newItems = new Array<T>();
 		this.items = newItems;
-		onItemsChanged(this.dependents, this.listeners, newItems);
+		onItemsChanged(dependents, listeners, newItems);
 	}
 
 	public contains(value: T): boolean {
@@ -104,13 +117,13 @@ export class ReactiveList<T extends NonNullable<unknown>> implements Reactive<Ar
 	}
 
 	public insert(index: number, value: T): void {
-		const { items } = this;
+		const { addListeners, dependents, items, listeners } = this;
 
 		if (index < 0 || index > items.length) throw new Error(`Index out of bounds: ${index}`);
 		items.splice(index, 0, value);
 
-		safeNotifyItemAdded(this.addListeners, value, index);
-		onItemsChanged(this.dependents, this.listeners, items);
+		safeNotifyItemAdded(addListeners, value, index);
+		onItemsChanged(dependents, listeners, items);
 	}
 
 	public map<R>(selector: ArrayPredicate<T, R>): Computed<Array<R>> {
@@ -142,15 +155,15 @@ export class ReactiveList<T extends NonNullable<unknown>> implements Reactive<Ar
 	}
 
 	public pop(): T | undefined {
-		const { items } = this;
-		const length = items.length;
+		const { dependents, items, listeners, removeListeners } = this;
+		const { length } = items;
 		if (length === 0) return undefined;
 
 		const item = items[length - 1]!;
 		delete items[length - 1];
 
-		safeNotifyItemRemoved(this.removeListeners, item, length - 1);
-		onItemsChanged(this.dependents, this.listeners, items);
+		safeNotifyItemRemoved(removeListeners, item, length - 1);
+		onItemsChanged(dependents, listeners, items);
 		return item;
 	}
 
@@ -160,26 +173,26 @@ export class ReactiveList<T extends NonNullable<unknown>> implements Reactive<Ar
 	}
 
 	public remove(value: T): boolean {
-		const { items } = this;
+		const { dependents, items, listeners, removeListeners } = this;
 		const index = items.indexOf(value);
 		if (index === -1) return false;
 
 		items.splice(index, 1);
-		safeNotifyItemRemoved(this.removeListeners, value, index);
-		onItemsChanged(this.dependents, this.listeners, items);
+		safeNotifyItemRemoved(removeListeners, value, index);
+		onItemsChanged(dependents, listeners, items);
 		return true;
 	}
 
 	public removeAt(index: number): T | undefined {
-		const { items } = this;
+		const { dependents, items, listeners, removeListeners } = this;
 		if (index < 0 || index >= items.length) return undefined;
 
 		const item = items[index];
 		if (item === undefined) return undefined;
 
 		items.splice(index, 1);
-		safeNotifyItemRemoved(this.removeListeners, item, index);
-		onItemsChanged(this.dependents, this.listeners, items);
+		safeNotifyItemRemoved(removeListeners, item, index);
+		onItemsChanged(dependents, listeners, items);
 		return item;
 	}
 
@@ -192,7 +205,7 @@ export class ReactiveList<T extends NonNullable<unknown>> implements Reactive<Ar
 	}
 
 	public set(items: AnyArray<T>): void {
-		const { addListeners, removeListeners } = this;
+		const { addListeners, dependents, listeners, removeListeners } = this;
 		if (removeListeners.size > 0) {
 			const previousItems = [...this.items];
 			for (let index = previousItems.length; index > 0; index -= 1) {
@@ -212,17 +225,17 @@ export class ReactiveList<T extends NonNullable<unknown>> implements Reactive<Ar
 			}
 		}
 
-		onItemsChanged(this.dependents, this.listeners, newItems);
+		onItemsChanged(dependents, listeners, newItems);
 	}
 
 	public shift(): T | undefined {
 		trackDependency(this);
-		const { items } = this;
+		const { dependents, items, listeners, removeListeners } = this;
 		const value = items.shift();
 		if (value === undefined) return undefined;
 
-		safeNotifyItemRemoved(this.removeListeners, value, 0);
-		onItemsChanged(this.dependents, this.listeners, items);
+		safeNotifyItemRemoved(removeListeners, value, 0);
+		onItemsChanged(dependents, listeners, items);
 		return value;
 	}
 
@@ -230,28 +243,17 @@ export class ReactiveList<T extends NonNullable<unknown>> implements Reactive<Ar
 		trackDependency(this);
 		return this.items.length;
 	}
-	public get length(): number {
-		trackDependency(this);
-		return this.items.length;
-	}
 
 	public update(index: number, value: T): boolean {
-		const { items } = this;
+		const { dependents, items, listeners } = this;
 		if (index < 0 || index >= items.length) return false;
 
 		items[index] = value;
-		onItemsChanged(this.dependents, this.listeners, items);
+		onItemsChanged(dependents, listeners, items);
 		return true;
 	}
 
 	public write(items: AnyArray<T>): void {
-		this.set(items);
-	}
-
-	public get value(): Array<T> {
-		return this.peek();
-	}
-	public set value(items: AnyArray<T>) {
 		this.set(items);
 	}
 

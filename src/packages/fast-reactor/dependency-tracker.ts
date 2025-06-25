@@ -25,11 +25,12 @@ export function getCurrentDependent(): Dependent | undefined {
  * @template T The type of the result.
  * @param dependent - The dependent that is tracking the dependencies.
  * @param callback - The function to execute while tracking dependencies.
- * @returns A `Tracked` object containing the dependencies and the result of
- *   the callback. If the callback fails, returns `undefined`.
+ * @returns A `Tracked` object containing the dependencies and the result of the
+ *   callback. If the callback fails, returns `undefined`.
  */
 export function track<T>(dependent: Dependent, callback: () => T): Tracked<T> {
-	dependentStack[length++] = dependent;
+	dependentStack[length] = dependent;
+	length += 1;
 	currentDependencies.clear();
 
 	try {

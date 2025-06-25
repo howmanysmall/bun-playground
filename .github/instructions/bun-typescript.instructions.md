@@ -114,7 +114,7 @@ You are an expert in Bun, a modern JavaScript runtime like Node.js, but with a f
 - Turn on `"noPropertyAccessFromIndexSignature": true` so accidental typos like `user.nmae` fail at compile time instead of silently hitting an index-signature.
 - Adopt the **`satisfies`** operator to ensure a value conforms to an interface while keeping its literal types (e.g., `const colors = {...} satisfies Record<ColorName, string>`).
 - Prefer `"useUnknownInCatchVariables": true` (or `catch (e: unknown)`) so you must narrow caught errors before you can inspect them.
-- Write assertion functions with `asserts` return types—e.g.,  
+- Write assertion functions with `asserts` return types—e.g.,
   `function assertFoo(x: unknown): asserts x is Foo { /* runtime check */ }`—to combine validation and type-narrowing.
 - Add `function assertNever(x: never): never { throw new Error("Unhandled case"); }` in default branches to guarantee exhaustive discriminated-union handling.
 - Use template-literal types to model string invariants, e.g., `type Hex = \`0x${string}\`` or `type Brand<T, B> = T & { __brand: B }`.

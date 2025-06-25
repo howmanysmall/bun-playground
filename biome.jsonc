@@ -3,11 +3,11 @@
 	"assist": {
 		"actions": {
 			"source": {
-				"organizeImports": "on",
-				"recommended": true,
-				"useSortedAttributes": "on",
-				"useSortedKeys": "on",
-				"useSortedProperties": "on"
+				"organizeImports": "on"
+				// "useSortedKeys": "on"
+				// "recommended": true,
+				// "useSortedAttributes": "on",
+				// "useSortedProperties": "on"
 			}
 		}
 	},

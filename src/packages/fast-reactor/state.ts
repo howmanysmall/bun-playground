@@ -18,6 +18,14 @@ function onValueChanged<T>(dependents: Set<Dependent>, listeners: Set<(value: T)
  * @template T The type of the value stored in the state.
  */
 export class State<T> implements Reactive<T> {
+	public get value(): T {
+		return this.peek();
+	}
+
+	public set value(items: T) {
+		this.set(items);
+	}
+
 	public addDependent(dependent: Dependent): void {
 		this.dependents.add(dependent);
 	}
@@ -89,13 +97,6 @@ export class State<T> implements Reactive<T> {
 		this.set(value);
 	}
 
-	public get value(): T {
-		return this.peek();
-	}
-	public set value(items: T) {
-		this.set(items);
-	}
-
 	/**
 	 * Creates a new reactive state with the given initial value.
 	 *
@@ -107,6 +108,6 @@ export class State<T> implements Reactive<T> {
 	}
 
 	private readonly dependents = new Set<Dependent>();
-	private readonly listeners = new Set<(value: T) => void>();
 	private internalValue: T;
+	private readonly listeners = new Set<(value: T) => void>();
 }

@@ -23,6 +23,14 @@ export class Computed<T> implements Dependent, Reactive<T> {
 	 * the computed value will be recalculated immediately when invalidated.
 	 */
 	public forceEager = false;
+	public get value(): T {
+		return this.peek();
+	}
+
+	public set value(value: T) {
+		this.set(value);
+	}
+
 	public addDependent(dependent: Dependent): void {
 		this.dependents.add(dependent);
 	}
@@ -82,13 +90,6 @@ export class Computed<T> implements Dependent, Reactive<T> {
 	public get(): T {
 		trackDependency(this);
 		return this.peek();
-	}
-
-	public get value(): T {
-		return this.peek();
-	}
-	public set value(value: T) {
-		this.set(value);
 	}
 
 	/**
@@ -164,11 +165,9 @@ export class Computed<T> implements Dependent, Reactive<T> {
 	public recompute(): void {
 		clearDependencies(this, this.dependencies);
 
-		const tracked = track(this, this.computeFunction);
-		if (!tracked) return;
-
-		this.dependencies = tracked.dependencies;
-		this.cachedValue = tracked.result;
+		const { dependencies, result } = track(this, this.computeFunction);
+		this.dependencies = dependencies;
+		this.cachedValue = result;
 		this.isDirty = false;
 	}
 

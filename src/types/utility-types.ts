@@ -9,7 +9,7 @@ export interface ErrorResult<E> {
 	readonly error: E;
 	readonly success: false;
 }
-export type SimpleResult<T, E> = SuccessResult<T> | ErrorResult<E>;
+export type SimpleResult<T, E> = ErrorResult<E> | SuccessResult<T>;
 
 export const unit = Symbol("unit");
 export type Unit = typeof unit;
