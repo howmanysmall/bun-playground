@@ -6,6 +6,7 @@
 ]=]
 
 local Execute = require("@utilities/Execute")
+local GetArguments = require("@utilities/GetArguments")
 local LuauPolyfill = require("@packages/LuauPolyfill")
 local PathFileSystem = require("@packages/PathFileSystem")
 local process = require("@lune/process")
@@ -13,6 +14,7 @@ local process = require("@lune/process")
 local Array = LuauPolyfill.Array
 
 local CWD = PathFileSystem.CWD
+local SOURCE = CWD:join("src")
 
 local function UndoableRename(originalPath: PathFileSystem.Path, newPath: PathFileSystem.Path): () -> ()
 	PathFileSystem.Copy(originalPath, newPath, true)
@@ -24,15 +26,19 @@ local function UndoableRename(originalPath: PathFileSystem.Path, newPath: PathFi
 	end
 end
 
-local SOURCE = CWD:join("src")
+local IGNORE_GLOBS = {
+	"**/__tests__";
+	"*.test.ts";
+	"*.spec.ts";
+}
 local undo = UndoableRename(SOURCE, CWD:join("src-temp"))
 
 local arguments = Array.concat({
 	"code2prompt";
 	"--exclude";
-	"\"**/__tests__,*.test.ts\"";
+	string.format("%q", table.concat(IGNORE_GLOBS, ","));
 	SOURCE:toString();
-}, process.args)
+}, GetArguments())
 
 local result = Execute(arguments, {
 	cwd = CWD:toString();
