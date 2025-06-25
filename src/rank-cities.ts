@@ -5,6 +5,7 @@ import chalk from "chalk";
 import CliTable3 from "cli-table3";
 import { stringifyINI, stringifyJSON, stringifyJSON5, stringifyJSONC, stringifyTOML, stringifyYAML } from "confbox";
 import FileType from "meta/file-type";
+import { State } from "packages/fast-reactor";
 import { z as zod } from "zod/v4";
 import { fromError } from "zod-validation-error/v4";
 
@@ -54,7 +55,16 @@ interface PromptResults {
 	readonly outputType: OutputType;
 }
 
-async function promptUserForOptionsAsync(): Promise<PromptResults> {
+const promptResultState = new State<PromptResults>({
+	affordableHousingPercentageInteger: 30,
+	limit: 100,
+	outputType: OutputType.CliTable3,
+});
+const affordableHousingPercentageState = promptResultState.map((state): number =>
+	Math.max((state.affordableHousingPercentageInteger ?? 0) / 100, 1),
+);
+
+async function promptUserForOptionsAsync(): Promise<void> {
 	const limit = await number({
 		default: 100,
 		message: "How many cities to fetch?",
@@ -71,20 +81,16 @@ async function promptUserForOptionsAsync(): Promise<PromptResults> {
 	});
 	const outputType = await select<OutputType>({
 		choices: [OutputType.ConsoleTable, OutputType.CliTable3],
-		default: OutputType.ConsoleTable,
+		default: OutputType.CliTable3,
 		message: "How would you like to display the results?",
 	});
 
-	return {
+	promptResultState.value = {
 		affordableHousingPercentageInteger,
 		limit,
 		outputType,
 	};
 }
-
-const { affordableHousingPercentageInteger, limit, outputType } = await promptUserForOptionsAsync();
-
-const affordableHousingPercentage = affordableHousingPercentageInteger / 100;
 
 const CENSUS_API_YEAR = 2023;
 const CENSUS_DATA_SOURCE = "acs/acs5";
@@ -146,6 +152,8 @@ async function fetchMsaDataAsync(url: URL): Promise<Array<MsaData>> {
 }
 
 function calculateAffordability(metroStatisticalAreas: Array<MsaData>): Array<AffordabilityRank> {
+	const affordableHousingPercentage = affordableHousingPercentageState.get();
+
 	return metroStatisticalAreas.map(({ medianIncome, medianRent, name }): AffordabilityRank => {
 		const medianMonthlyIncome = medianIncome / 12;
 		const affordableMonthlyRent = medianMonthlyIncome * affordableHousingPercentage;
@@ -172,6 +180,8 @@ interface RankedCity {
 }
 
 function displayResults(rankedCities: RankedCities): void {
+	const { affordableHousingPercentageInteger, outputType } = promptResultState.get();
+
 	console.log("\n--- Top 100 US Cities Ranked by Rent Affordability (Most to Least Expensive) ---");
 	console.log(
 		`This ranks cities by how much the median rent exceeds ${affordableHousingPercentageInteger}% of the median monthly income.\n`,
@@ -299,6 +309,7 @@ async function writeResultsAsync(rankedCities: RankedCities): Promise<void> {
 
 async function rankCitiesByAffordabilityAsync(): Promise<void> {
 	const url = buildCensusApiUrl();
+	const { limit } = promptResultState.get();
 
 	try {
 		const parsedData = await fetchMsaDataAsync(url);
@@ -315,9 +326,10 @@ async function rankCitiesByAffordabilityAsync(): Promise<void> {
 	}
 }
 
-async function mainAsync(): Promise<void> {
+export async function mainAsync(): Promise<void> {
+	await promptUserForOptionsAsync();
+	const { limit } = promptResultState.get();
 	console.log(`Fetching the ${limit} largest cities in the US...`);
 	await rankCitiesByAffordabilityAsync();
 }
-
 if (import.meta.main) mainAsync().catch(console.error);

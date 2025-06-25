@@ -13,3 +13,5 @@ export type SimpleResult<T, E> = SuccessResult<T> | ErrorResult<E>;
 
 export const unit = Symbol("unit");
 export type Unit = typeof unit;
+
+export type Cleanup = () => void;
