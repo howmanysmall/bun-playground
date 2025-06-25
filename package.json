@@ -3,12 +3,12 @@
 		"url": "https://github.com/howmanysmall/bun-playground/issues"
 	},
 	"dependencies": {
+		"@inquirer/prompts": "^7.5.3",
 		"chalk": "^5.4.1",
-		"cheerio": "^1.1.0",
+		"confbox": "^0.2.2",
 		"css-select": "^5.1.0",
-		"csv-parse": "^5.6.0",
 		"domhandler": "^5.0.3",
-		"htmlparser2": "^10.0.0",
+		"htmlparser2": "^10.`0.0",
 		"termost": "^1.4.0",
 		"zod": "^3.25.56",
 		"zod-validation-error": "^3.4.1"

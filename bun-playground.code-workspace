@@ -8,8 +8,8 @@
 	"settings": {
 		"emmet.excludeLanguages": ["markdown", "typescript", "lua", "luau", "typescriptreact"],
 		"files.defaultLanguage": "typescript",
+		"luau-lsp.platform.type": "standard",
 		"typescript.inlayHints.enumMemberValues.enabled": true,
 		"typescript.inlayHints.parameterNames.enabled": "literals",
-		"luau-lsp.platform.type": "standard",
 	},
 }
