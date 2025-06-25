@@ -103,6 +103,10 @@ You are an expert in Bun, a modern JavaScript runtime like Node.js, but with a f
 - Use project references (`"composite": true`) in `tsconfig.json` to split large codebases or monorepos into faster incremental build units.
 - Pin your Bun version in `package.json`’s `engines.bun` field and check it at runtime via `import.meta.bunVersion` to ensure consistent environments.
 - Leverage Bun’s `import.meta.glob`/`globEager` (when available) for filesystem‐based code loading or route registration without additional dependencies.
+- Do not import files with `require`, `import * as x from "./x.ts"`, or `import * as x from "./x.js"`; always use `import * as x from "./x"`.
+- File names are `kebab-case`, always. Do not stray from this.
+- Use biome for linting and formatting.
+- Always prefer `export default` for primary exports.
 
 ## Advanced TypeScript
 

@@ -5,12 +5,15 @@
 	"dependencies": {
 		"@inquirer/prompts": "^7.5.3",
 		"chalk": "^5.4.1",
+		"chokidar": "^4.0.3",
 		"cli-table3": "^0.6.5",
 		"confbox": "^0.2.2",
 		"css-select": "^5.1.0",
 		"domhandler": "^5.0.3",
+		"env-paths": "^3.0.0",
 		"htmlparser2": "^10.`0.0",
 		"termost": "^1.4.0",
+		"winston": "^3.17.0",
 		"zod": "^3.25.56",
 		"zod-validation-error": "^3.4.1"
 	},
