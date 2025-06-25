@@ -33,13 +33,14 @@
 	"private": true,
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/howmanysmall/bun-cli-template.git"
+		"url": "https://github.com/howmanysmall/bun-playground.git"
 	},
 	"scripts": {
 		"build": "bun build ./src/index.ts --target bun --compile --outfile out/bun-playground",
 		"build-mini": "bun build ./src/index.ts --target bun --minify --compile --outfile out/bun-playground",
 		"build-prod": "bun build --compile --minify --sourcemap ./src/index.ts --outfile out/bun-playground",
 		"clean-install": "bun x rimraf node_modules bun.lock && bun install -f",
+		"create-prompt": "code2prompt --exclude \"*.test.ts\" src",
 		"dev": "bun run --watch src/index.ts",
 		"dev-hot": "bun run --hot --watch src/index.ts",
 		"lint": "bun x biome ci",

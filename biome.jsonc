@@ -1,6 +1,5 @@
 {
 	"$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
-
 	"assist": {
 		"actions": {
 			"source": {
@@ -12,6 +11,7 @@
 			}
 		}
 	},
+
 	"formatter": {
 		"enabled": true,
 		"formatWithErrors": true,
@@ -46,7 +46,9 @@
 		"enabled": true,
 		"includes": ["**", "!**/.vscode/**", "!**/node_modules/**", "!**/*.code-workspace", "!**/garbage/**"],
 		"rules": {
-			"a11y": {},
+			"a11y": {
+				"recommended": true
+			},
 			"complexity": {
 				"noAdjacentSpacesInRegex": "error",
 				"noBannedTypes": "error",
@@ -57,6 +59,7 @@
 				"noUselessSwitchCase": "error",
 				"noUselessThisAlias": "error",
 				"noUselessTypeConstraint": "error",
+				"recommended": true,
 				"useArrowFunction": "off",
 				"useDateNow": "error",
 				"useFlatMap": "error"
@@ -82,15 +85,22 @@
 				"noUnsafeOptionalChaining": "error",
 				"noUnusedLabels": "error",
 				"noUnusedVariables": "error",
+				"recommended": true,
 				"useIsNan": "error",
 				"useValidForDirection": "error",
 				"useValidTypeof": "error",
 				"useYield": "error"
 			},
-			"nursery": {},
-			"performance": {},
+			"nursery": {
+				"recommended": true
+			},
+			"performance": {
+				"recommended": true
+			},
 			"recommended": true,
-			"security": {},
+			"security": {
+				"recommended": true
+			},
 			"style": {
 				"noEnum": "off",
 				"noInferrableTypes": "error",
@@ -100,6 +110,7 @@
 				"noParameterAssign": "off",
 				"noUnusedTemplateLiteral": "error",
 				"noUselessElse": "error",
+				"recommended": true,
 				"useArrayLiterals": "off",
 				"useAsConstAssertion": "error",
 				"useBlockStatements": "off",
@@ -147,12 +158,11 @@
 				"noUnsafeDeclarationMerging": "error",
 				"noUnsafeNegation": "error",
 				"noWith": "error",
+				"recommended": true,
 				"useErrorMessage": "error",
 				"useGetterReturn": "error",
 				"useIsArray": "error",
 				"useNumberToFixedDigitsArgument": "error"
-
-				// "noConstEnum": "off"
 			}
 		}
 	},
@@ -177,41 +187,6 @@
 				}
 			}
 		}
-
-		// {
-		// 	"include": ["**/*.ts", "**/*.js"],
-		// 	"linter": {
-		// 		"rules": {
-		// 			"recommended": true,
-		// 			"correctness": {
-		// 				"noConstAssign": "off",
-		// 				"noGlobalObjectCalls": "off",
-		// 				"noInvalidBuiltinInstantiation": "off",
-		// 				"noInvalidConstructorSuper": "off",
-		// 				"noNewSymbol": "off",
-		// 				"noSetterReturn": "off",
-		// 				"noUndeclaredVariables": "off",
-		// 				"noUnreachable": "off",
-		// 				"noUnreachableSuper": "off"
-		// 			},
-		// 			"style": {
-		// 				"noArguments": "error",
-		// 				"noVar": "error",
-		// 				"useConst": "error"
-		// 			},
-		// 			"suspicious": {
-		// 				"noDuplicateClassMembers": "off",
-		// 				"noDuplicateObjectKeys": "off",
-		// 				"noDuplicateParameters": "off",
-		// 				"noFunctionAssign": "off",
-		// 				"noImportAssign": "off",
-		// 				"noRedeclare": "off",
-		// 				"noUnsafeNegation": "off",
-		// 				"useGetterReturn": "off"
-		// 			}
-		// 		}
-		// 	}
-		// }
 	],
 
 	"vcs": {

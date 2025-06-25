@@ -1,48 +1,47 @@
 {
 	"compilerOptions": {
 		// Environment setup & latest features
+		"allowImportingTsExtensions": true,
+		// Environment setup & latest features
 		"allowJs": false,
+
+		"allowSyntheticDefaultImports": true,
+		"baseUrl": "./src",
+		"downlevelIteration": true,
+		"esModuleInterop": true,
+		"experimentalDecorators": true,
+		"forceConsistentCasingInFileNames": true,
 		"jsx": "react-jsx",
 		"lib": ["ESNext"],
-		"module": "ESNext", // "Preserve",
+		"module": "ESNext",
 		"moduleDetection": "force",
-		"outDir": "./dist",
-		"target": "ESNext",
-
-		// Bundler mode
-		"allowImportingTsExtensions": true,
 		"moduleResolution": "bundler",
 		"noEmit": true,
-		"useUnknownInCatchVariables": true,
-		"verbatimModuleSyntax": true,
 
 		// Best practices
 		"noFallthroughCasesInSwitch": true,
 		"noImplicitOverride": true,
+		"noPropertyAccessFromIndexSignature": false,
 		"noUncheckedIndexedAccess": true,
-		"skipLibCheck": true,
-		"strict": true,
 
 		// Some stricter flags (disabled by default)
 		"noUnusedLocals": false,
 		"noUnusedParameters": false,
-		"noPropertyAccessFromIndexSignature": false,
-
-		"allowSyntheticDefaultImports": true,
-		"downlevelIteration": true,
-		"experimentalDecorators": true,
-		"forceConsistentCasingInFileNames": true,
-		"resolveJsonModule": true,
-		"esModuleInterop": true,
+		"outDir": "./dist",
 
 		"paths": {
 			"classes/*": ["classes/*"],
 			"types/*": ["types/*"],
-			"utilities/*": ["utilities/*"],
+			"utilities/*": ["utilities/*"]
 		},
+		"resolveJsonModule": true,
+		"skipLibCheck": true,
+		"strict": true,
+		"target": "ESNext",
 
 		"types": ["bun-types"],
-		"baseUrl": "./src",
+		"useUnknownInCatchVariables": true,
+		"verbatimModuleSyntax": true
 	},
-	"include": ["src/**/*", "benchmarks/**/*", "tests/**/*"],
+	"include": ["src/**/*", "benchmarks/**/*", "tests/**/*"]
 }
