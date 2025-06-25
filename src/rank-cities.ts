@@ -1,19 +1,9 @@
 #!/usr/bin/env bun
 
 import { confirm, number, select } from "@inquirer/prompts";
-import {
-	type INIStringifyOptions,
-	type JSON5StringifyOptions,
-	type JSONStringifyOptions,
-	stringifyINI,
-	stringifyJSON,
-	stringifyJSON5,
-	stringifyJSONC,
-	stringifyTOML,
-	stringifyYAML,
-	type YAMLStringifyOptions,
-} from "confbox";
-import type { JSONCStringifyOptions } from "confbox/jsonc";
+import chalk from "chalk";
+import CliTable3 from "cli-table3";
+import { stringifyINI, stringifyJSON, stringifyJSON5, stringifyJSONC, stringifyTOML, stringifyYAML } from "confbox";
 import FileType from "meta/file-type";
 import { z as zod } from "zod/v4";
 import { fromError } from "zod-validation-error/v4";
@@ -52,6 +42,12 @@ interface AffordabilityRank {
 	readonly rentToIncomeRatio: number;
 }
 
+// biome-ignore lint/suspicious/noConstEnum: not built
+const enum OutputType {
+	ConsoleTable = "console.table",
+	CliTable3 = "cli-table3",
+}
+
 const limit = await number({
 	default: 100,
 	message: "How many cities to fetch?",
@@ -66,6 +62,12 @@ const affordableHousingPercentageInteger = await number({
 	min: 0,
 	required: true,
 });
+const outputType = await select<OutputType>({
+	choices: [OutputType.ConsoleTable, OutputType.CliTable3],
+	default: OutputType.ConsoleTable,
+	message: "How would you like to display the results?",
+});
+
 const affordableHousingPercentage = affordableHousingPercentageInteger / 100;
 
 const CENSUS_API_YEAR = 2022;
@@ -145,6 +147,13 @@ function calculateAffordability(metroStatisticalAreas: Array<MsaData>): Array<Af
 }
 
 type RankedCities = Array<Omit<AffordabilityRank, "rank">>;
+interface RankedCity {
+	readonly Rank: string;
+	readonly "Actual Median Rent": string;
+	readonly "Affordable Rent": string;
+	readonly "City Market": string;
+	readonly "Rent Burden (%)": string;
+}
 
 function displayResults(rankedCities: RankedCities): void {
 	console.log("\n--- Top 100 US Cities Ranked by Rent Affordability (Most to Least Expensive) ---");
@@ -152,77 +161,67 @@ function displayResults(rankedCities: RankedCities): void {
 		`This ranks cities by how much the median rent exceeds ${affordableHousingPercentageInteger}% of the median monthly income.\n`,
 	);
 
-	const tableHeader = [
-		"Rank".padEnd(5),
-		"City Market".padEnd(50),
-		"Rent Burden (%)".padEnd(20),
-		`Affordable Rent (${affordableHousingPercentageInteger}%)`.padEnd(25),
-		"Actual Median Rent".padEnd(20),
-	].join("");
-	console.log(tableHeader);
-	console.log("=".repeat(tableHeader.length));
-	console.log(
-		rankedCities
-			.map(({ actualMedianRent, affordableMonthlyRent, name, rentToIncomeRatio }, index) => {
-				return [
-					`${index + 1}`.padEnd(5),
-					name.slice(0, 48).padEnd(50),
-					rentToIncomeRatio.toFixed(1).padStart(7, " ") + "%".padEnd(13),
-					`$${affordableMonthlyRent.toFixed(0)}`.padEnd(25),
-					`$${actualMedianRent.toFixed(0)}`.padEnd(20),
-				].join("");
-			})
-			.join("\n"),
-	);
+	switch (outputType) {
+		case OutputType.ConsoleTable:
+			console.table(
+				rankedCities.map(
+					({ actualMedianRent, affordableMonthlyRent, name, rentToIncomeRatio }, index): RankedCity => {
+						return {
+							"Actual Median Rent": `$${actualMedianRent.toFixed(0)}`,
+							"Affordable Rent": `$${affordableMonthlyRent.toFixed(0)}`,
+							"City Market": name,
+							Rank: `${index + 1}`,
+							"Rent Burden (%)": `${rentToIncomeRatio.toFixed(1)}%`,
+						};
+					},
+				),
+				["City Market", "Rent Burden (%)", "Affordable Rent", "Actual Median Rent"],
+			);
+			break;
+
+		case OutputType.CliTable3: {
+			const bold = chalk.bold;
+			const cliTable = new CliTable3({
+				head: [
+					bold("Rank"),
+					bold("City Market"),
+					bold("Rent Burden (%)"),
+					bold(`Affordable Rent (${affordableHousingPercentageInteger}%)`),
+					bold("Actual Median Rent"),
+				],
+			});
+
+			for (const [
+				index,
+				{ actualMedianRent, affordableMonthlyRent, name, rentToIncomeRatio },
+			] of rankedCities.entries()) {
+				cliTable.push([
+					index + 1,
+					name,
+					`${rentToIncomeRatio.toFixed(1)}%`,
+					`$${affordableMonthlyRent.toFixed(0)}`,
+					`$${actualMedianRent.toFixed(0)}`,
+				]);
+			}
+
+			console.log(cliTable.toString());
+			break;
+		}
+
+		default:
+			throw new Error(`Unsupported output type: ${outputType}`);
+	}
 }
 
-type FormatOptions = {
-	[FileType.Ini]: INIStringifyOptions;
-	[FileType.Json]: JSONStringifyOptions;
-	[FileType.Json5]: JSON5StringifyOptions;
-	[FileType.JsonC]: JSONCStringifyOptions;
-	[FileType.Toml]: undefined;
-	[FileType.Yaml]: YAMLStringifyOptions;
-};
-
-type MetadataType = {
-	readonly [fileType in FileType]: {
-		readonly promptExtensionsAsync: () => Promise<FormatOptions[fileType]>;
-		readonly getStringAsync: (rankedCities: RankedCities, options: FormatOptions[fileType]) => Promise<string>;
-	};
-};
-
-const FileTypeMeta: MetadataType = {
-	[FileType.Ini]: {
-		getStringAsync: async (rankedCities: RankedCities, options: INIStringifyOptions): Promise<string> => {
-			const options: INIStringifyOptions = {
-				align: false,
-				sort: false,
-				whitespace: true,
-			};
-
-			return stringifyINI(rankedCities, {
-				align: false,
-				sort: false,
-				whitespace: true,
-			});
-		},
-		promptExtensionsAsync: async (): Promise<INIStringifyOptions> => {
-			const whitespace = await confirm({
-				default: true,
-				message: "Do you want to insert spaces before & after `=` characters?",
-			});
-			const align = await confirm({
-				default: false,
-				message: "Do you want to align the `=` character for each section?",
-			});
-
-			return {
-				align,
-				whitespace,
-			};
-		},
+const FileTypeMeta: Record<FileType, (rankedCities: RankedCities) => Promise<string>> = {
+	[FileType.Ini]: async (rankedCities: RankedCities): Promise<string> => {
+		return stringifyINI(rankedCities, {
+			align: false,
+			sort: false,
+			whitespace: true,
+		});
 	},
+
 	[FileType.Json]: async (rankedCities: RankedCities): Promise<string> => {
 		return stringifyJSON(rankedCities, {
 			indent: 4,
@@ -270,6 +269,16 @@ async function writeResultsAsync(rankedCities: RankedCities): Promise<void> {
 		loop: true,
 		message: "What format to write?",
 	});
+
+	const callback = FileTypeMeta[fileType];
+	if (!callback) {
+		console.error(`Unsupported file type: ${fileType}`);
+		return;
+	}
+
+	const file = Bun.file(`./ranked-cities.${fileType}`);
+	const fileContents = await callback(rankedCities);
+	await file.write(fileContents);
 }
 
 async function rankCitiesByAffordabilityAsync(): Promise<void> {
@@ -283,6 +292,7 @@ async function rankCitiesByAffordabilityAsync(): Promise<void> {
 		rankedCities.sort((a, b) => b.rentToIncomeRatio - a.rentToIncomeRatio);
 
 		displayResults(rankedCities);
+		await writeResultsAsync(rankedCities);
 	} catch (error) {
 		console.error("An unexpected error occurred:", error);
 		process.exit(1);
