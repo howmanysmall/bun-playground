@@ -3,9 +3,9 @@
 		"classes": ".lune/Classes",
 		"errors": ".lune/Classes/Errors",
 		"functions": ".lune/Functions",
-		"promises": ".lune/Promises",
 		"lune": "~/.lune/.typedefs/0.9.4/",
 		"packages": ".lune/Packages",
+		"promises": ".lune/Promises",
 		"utilities": ".lune/Utilities"
 	},
 	"globals": [],

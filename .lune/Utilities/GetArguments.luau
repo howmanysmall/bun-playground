@@ -5,20 +5,8 @@ local process = require("@lune/process")
 
 local function GetArguments(): {string}
 	local arguments = process.args
-
-	local fixedArguments = table.create(#arguments - 1)
-	local length = 0
-
-	for index, value in arguments do
-		if index == 1 then
-			continue
-		end
-
-		length += 1
-		fixedArguments[length] = value
-	end
-
-	return fixedArguments
+	local length = #arguments
+	return table.move(arguments, 2, length, 1, table.create(length - 1))
 end
 
 return GetArguments

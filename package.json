@@ -40,7 +40,7 @@
 		"build-mini": "bun build ./src/index.ts --target bun --minify --compile --outfile out/bun-playground",
 		"build-prod": "bun build --compile --minify --sourcemap ./src/index.ts --outfile out/bun-playground",
 		"clean-install": "bun x rimraf node_modules bun.lock && bun install -f",
-		"create-prompt": "code2prompt --exclude \"*.test.ts\" src",
+		"create-prompt": "code2prompt --exclude \"**/__tests__,*.test.ts\" src",
 		"dev": "bun run --watch src/index.ts",
 		"dev-hot": "bun run --hot --watch src/index.ts",
 		"lint": "bun x biome ci",
