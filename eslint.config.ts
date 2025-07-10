@@ -1,4 +1,5 @@
 // @ts-check
+
 import style, { GLOB_JSON, GLOB_JSONC, type TypedFlatConfigItem } from "@isentinel/eslint-config";
 import biome from "eslint-config-biome";
 
@@ -35,6 +36,8 @@ export default style(
 		react: true,
 		roblox: false,
 		rules: {
+			// this is stupid? and standard?
+			"antfu/no-top-level-await": "off",
 			"arrow-style/arrow-return-style": "off",
 			// makes shit less neat
 			"no-inline-comments": "off",
@@ -57,8 +60,6 @@ export default style(
 			// ugly and makes max-lines-per-function even worse
 			"style/padding-line-between-statements": "off",
 			"test/require-hook": "off",
-			// does not work with jest for luau
-			"test/valid-expect": "off",
 			// kid named "no operation"
 			"ts/no-empty-function": "off",
 			// sometimes stuff isn't added. this is unhelpful as a result.
@@ -151,7 +152,14 @@ export default style(
 		},
 	},
 	{
-		files: ["benchmarks/**", ".lune/**", "do-not-sync-ever/**", "data/**", "node_modules/**", "*.yml", "*.yaml"],
+		files: [".lune/**", "do-not-sync-ever/**", "data/**", "node_modules/**", "*.yml", "*.yaml"],
 		rules: { "*": "off" },
+	},
+	{
+		files: ["benchmarks/**"],
+		rules: {
+			// this is stupid? and standard?
+			"antfu/no-top-level-await": "off",
+		},
 	},
 ).append(biome as TypedFlatConfigItem);

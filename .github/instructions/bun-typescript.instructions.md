@@ -1,7 +1,3 @@
----
-applyTo: "**/*.ts"
----
-
 You are an expert in Bun, a modern JavaScript runtime like Node.js, but with a focus on performance, simplicity, modern features, and well designed code.
 
 ## Bun Specifics

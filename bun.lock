@@ -5,6 +5,7 @@
       "name": "bun-playground",
       "dependencies": {
         "@inquirer/prompts": "^7.5.3",
+        "@rawify/vector3": "^0.0.2",
         "chalk": "^5.4.1",
         "chokidar": "^4.0.3",
         "cli-table3": "^0.6.5",
@@ -31,7 +32,6 @@
         "eslint-plugin-react-roblox-hooks": "5.1.0-rbx.1",
         "mitata": "^1.0.34",
         "rimraf": "^6.0.1",
-        "typescript": "^5.8.3",
       },
       "peerDependencies": {
         "typescript": "^5",
@@ -374,6 +374,8 @@
     "@nodelib/fs.walk": ["@nodelib/fs.walk@3.0.1", "", { "dependencies": { "@nodelib/fs.scandir": "4.0.1", "fastq": "^1.15.0" } }, "sha512-nIh/M6Kh3ZtOmlY00DaUYB4xeeV6F3/ts1l29iwl3/cfyY/OuCfUx+v08zgx8TKPTifXRcjjqVQ4KB2zOYSbyw=="],
 
     "@pkgr/core": ["@pkgr/core@0.2.7", "", {}, "sha512-YLT9Zo3oNPJoBjBc4q8G2mjU4tqIbf5CEOORbUUr48dCD9q3umJ3IPlVqOqDakPfd2HuwccBaqlGhN4Gmr5OWg=="],
+
+    "@rawify/vector3": ["@rawify/vector3@0.0.2", "", {}, "sha512-CAkq4LUN4GR7lkrhuZe32qYjb5NIm1qM6748QxtLWCwRs9ttjfYrROZ6TnaByqO4VhvDoP6aMDr1Cq8UfQyqNA=="],
 
     "@rtsao/scc": ["@rtsao/scc@1.1.0", "", {}, "sha512-zt6OdqaDoOnJ1ZYsCYGt9YmWzDXl4vQdKTyJev62gFhRGKdx7mcT54V9KIjg+d2wi9EXsPvAPKe7i7WjfVWB8g=="],
 
